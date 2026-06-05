@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { parseDeliveryCsv } from "@/lib/csv/parse";
 import { replaceServerRecords } from "@/lib/data/server-store";
 
-export const dynamic = "force-static";
-
 export async function POST(request: Request) {
   const body = await request.text();
   const result = parseDeliveryCsv(body);

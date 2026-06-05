@@ -1,9 +1,11 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDeliveryRecord, normalizeDeliveryPayload } from "@/lib/data/normalize";
 import type { DeliveryPayload, DeliveryRecord } from "@/lib/types";
+
+vi.mock("server-only", () => ({}));
 
 describe("data normalize", () => {
   it("为导入记录补齐 id、updatedAt 和标签数组", () => {
@@ -250,6 +252,16 @@ describe("delivery api route", () => {
 });
 
 describe("server store", () => {
+  const localRecord: DeliveryRecord = {
+    id: "delivery-local",
+    province: "广东省",
+    city: "深圳市",
+    university: "深圳大学",
+    purchaseTags: [],
+    productTags: ["SDDC"],
+    updatedAt: "2026-06-05T00:00:00.000Z",
+  };
+
   it("本地数据文件损坏时抛错而不是回退 mock", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "edu-deliveries-"));
     const filePath = path.join(dir, "deliveries.local.json");
@@ -262,5 +274,48 @@ describe("server store", () => {
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  });
+
+  it("本地数据写入后可以读取", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "edu-deliveries-"));
+    const filePath = path.join(dir, "deliveries.local.json");
+
+    try {
+      const { readLocalDeliveryRecords, writeLocalDeliveryRecords } = await import("@/lib/data/server-store");
+
+      await writeLocalDeliveryRecords([localRecord], filePath);
+
+      expect(await readLocalDeliveryRecords(filePath)).toEqual([localRecord]);
+      expect(await readFile(filePath, "utf8")).toContain("delivery-local");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("browser provider", () => {
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("localStorage 损坏时返回 seed 且不覆盖坏数据", async () => {
+    const seed: DeliveryRecord[] = [
+      {
+        id: "delivery-seed",
+        province: "广东省",
+        city: "深圳市",
+        university: "深圳大学",
+        purchaseTags: [],
+        productTags: ["SDDC"],
+        updatedAt: "2026-06-05T00:00:00.000Z",
+      },
+    ];
+
+    window.localStorage.setItem("edu-system.deliveries", "{bad json");
+    const { createBrowserProvider } = await import("@/lib/data/browser-provider");
+    const provider = createBrowserProvider(seed);
+
+    expect(await provider.list()).toEqual(seed);
+    expect(window.localStorage.getItem("edu-system.deliveries")).toBe("{bad json");
   });
 });

@@ -1,5 +1,6 @@
+import "server-only";
 import { list, put } from "@vercel/blob";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createDeliveryRecord } from "@/lib/data/normalize";
 import { mockDeliveries } from "@/lib/mock/deliveries";
@@ -47,10 +48,13 @@ export async function readLocalDeliveryRecords(filePath = LOCAL_DATA_PATH): Prom
   }
 }
 
-async function writeLocalRecords(records: DeliveryRecord[]) {
+export async function writeLocalDeliveryRecords(records: DeliveryRecord[], filePath = LOCAL_DATA_PATH) {
   assertWritableStoreConfigured();
-  await mkdir(path.dirname(LOCAL_DATA_PATH), { recursive: true });
-  await writeFile(LOCAL_DATA_PATH, JSON.stringify(records, null, 2), "utf8");
+  const dir = path.dirname(filePath);
+  const tempPath = path.join(dir, `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`);
+  await mkdir(dir, { recursive: true });
+  await writeFile(tempPath, JSON.stringify(records, null, 2), "utf8");
+  await rename(tempPath, filePath);
 }
 
 async function readBlobRecords(): Promise<DeliveryRecord[]> {
@@ -71,6 +75,7 @@ async function writeBlobRecords(records: DeliveryRecord[]) {
     access: "public",
     contentType: "application/json",
     addRandomSuffix: false,
+    cacheControlMaxAge: 0,
   });
 }
 
@@ -82,7 +87,7 @@ export async function writeServerRecords(records: DeliveryRecord[]) {
   if (shouldUseBlobStore()) {
     await writeBlobRecords(records);
   } else {
-    await writeLocalRecords(records);
+    await writeLocalDeliveryRecords(records);
   }
 }
 

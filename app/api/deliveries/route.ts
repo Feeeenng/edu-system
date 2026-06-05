@@ -4,8 +4,6 @@ import { readServerRecords, replaceServerRecords, writeServerRecords } from "@/l
 import { validateDeliveryPayload, validateDeliveryPayloadArray } from "@/lib/data/validation";
 import type { DeliveryPayload } from "@/lib/types";
 
-export const dynamic = "force-static";
-
 async function readJsonBody(request: Request): Promise<{ ok: true; data: unknown } | { ok: false; response: Response }> {
   try {
     return { ok: true, data: await request.json() };
@@ -20,7 +18,7 @@ function jsonError(error: string, status: number) {
 
 export async function GET() {
   const records = await readServerRecords();
-  return NextResponse.json({ records });
+  return NextResponse.json({ records }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: Request) {
