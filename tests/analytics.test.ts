@@ -44,9 +44,16 @@ describe("analytics", () => {
   });
 
   it("按交付记录数生成高校排行", () => {
-    const ranking = rankUniversities(mockDeliveries);
+    const ranking = rankUniversities([
+      ...mockDeliveries,
+      { ...mockDeliveries[0], id: "delivery-bj-tsinghua-002", deliveryDate: "2025-04-18" },
+      { ...mockDeliveries[0], id: "delivery-bj-tsinghua-003", deliveryDate: "2025-05-18" },
+      { ...mockDeliveries[3], id: "delivery-gd-sysu-002", deliveryDate: "2025-09-14" },
+    ]);
 
     expect(ranking.length).toBeGreaterThan(0);
-    expect(ranking[0].deliveryCount).toBeGreaterThanOrEqual(ranking[ranking.length - 1].deliveryCount);
+    for (let index = 1; index < ranking.length; index += 1) {
+      expect(ranking[index - 1].deliveryCount).toBeGreaterThanOrEqual(ranking[index].deliveryCount);
+    }
   });
 });
