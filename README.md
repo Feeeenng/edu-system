@@ -51,7 +51,7 @@ Blob 使用 private JSON，读取会绕过 CDN 缓存并按 ETag 做乐观并发
 
 ### 写接口保护
 
-如果配置了 `ADMIN_API_TOKEN`，写入、导入和导出接口需要携带 `Authorization: Bearer <token>` 或 `x-admin-token: <token>`。未配置该环境变量时，本地开发会继续允许直接访问。普通 `GET /api/deliveries` 保持公开，方便大屏读取。
+如果配置了 `ADMIN_API_TOKEN`，写入、导入和导出接口需要携带 `Authorization: Bearer <token>` 或 `x-admin-token: <token>`。未配置该环境变量时，本地开发会继续允许直接访问；Vercel/生产环境会拒绝管理接口，避免预览部署暴露写入能力。普通 `GET /api/deliveries` 保持公开，方便大屏读取。
 
 ### 静态导出模式
 

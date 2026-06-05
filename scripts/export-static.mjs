@@ -24,7 +24,7 @@ function shouldExclude(source) {
   const relative = path.relative(root, source);
   if (!relative) return false;
   const [firstSegment] = relative.split(path.sep);
-  return EXCLUDED_NAMES.has(firstSegment);
+  return EXCLUDED_NAMES.has(firstSegment) || firstSegment.startsWith(".env");
 }
 
 async function copyProjectToTemp() {

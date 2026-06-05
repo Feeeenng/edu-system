@@ -19,6 +19,17 @@ const NUMBER_FIELDS: Array<[keyof DeliveryPayload, string]> = [
   ["resourceAmount", "资源数量"],
 ];
 
+const OPTIONAL_TEXT_FIELDS: Array<[keyof DeliveryPayload, string]> = [
+  ["updatedAt", "更新时间"],
+  ["customerStatus", "客户状态"],
+  ["deliveryDate", "交付日期"],
+  ["owner", "负责人"],
+  ["resourceType", "资源类型"],
+  ["resourceUnit", "资源单位"],
+  ["deliveryContent", "交付内容"],
+  ["notes", "备注"],
+];
+
 const RECORD_REQUIRED_TEXT_FIELDS: Array<[keyof DeliveryRecord, string]> = [
   ["id", "记录 ID"],
   ["updatedAt", "更新时间"],
@@ -85,6 +96,9 @@ export function validateDeliveryPayload(payload: unknown): ValidationResult {
   if (record.id !== undefined && typeof record.id !== "string") {
     return { ok: false, error: "记录 ID 必须是字符串" };
   }
+  if (record.id !== undefined && record.id.trim().length === 0) {
+    return { ok: false, error: "记录 ID 不能为空" };
+  }
 
   const missing = REQUIRED_FIELDS.filter(([key]) => !hasText(record[key])).map(([, label]) => label);
   if (missing.length > 0) {
@@ -102,6 +116,13 @@ export function validateDeliveryPayload(payload: unknown): ValidationResult {
     const value = record[key];
     if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value))) {
       return { ok: false, error: `${label}必须是有效数字` };
+    }
+  }
+
+  for (const [key, label] of OPTIONAL_TEXT_FIELDS) {
+    const value = record[key];
+    if (value !== undefined && typeof value !== "string") {
+      return { ok: false, error: `${label}必须是字符串` };
     }
   }
 

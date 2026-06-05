@@ -247,6 +247,51 @@ describe("delivery api route", () => {
     expect(store.mutateServerRecords).not.toHaveBeenCalled();
   });
 
+  it("POST 可选文本字段类型错误返回 400 且不写入", async () => {
+    const { route, store } = await loadRoute();
+    const response = await route.POST(
+      new Request("http://localhost/api/deliveries", {
+        method: "POST",
+        body: JSON.stringify({
+          province: "广东省",
+          city: "深圳市",
+          university: "深圳大学",
+          customerStatus: 123,
+          updatedAt: 123,
+          purchaseTags: [],
+          productTags: [],
+        }),
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "更新时间必须是字符串" });
+    expect(store.mutateServerRecords).not.toHaveBeenCalled();
+  });
+
+  it("POST 空记录 ID 返回 400 且不写入", async () => {
+    const { route, store } = await loadRoute();
+    const response = await route.POST(
+      new Request("http://localhost/api/deliveries", {
+        method: "POST",
+        body: JSON.stringify({
+          id: "",
+          province: "广东省",
+          city: "深圳市",
+          university: "深圳大学",
+          purchaseTags: [],
+          productTags: [],
+        }),
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "记录 ID 不能为空" });
+    expect(store.mutateServerRecords).not.toHaveBeenCalled();
+  });
+
   it("PUT 不存在 ID 返回 404 且不写入", async () => {
     const { route, store } = await loadRoute();
     const response = await route.PUT(
@@ -358,6 +403,46 @@ describe("delivery api route", () => {
       expect(await response.json()).toEqual({ error: "未授权访问" });
       expect(store.mutateServerRecords).not.toHaveBeenCalled();
     });
+  });
+
+  it("Vercel 环境缺少 ADMIN_API_TOKEN 时 POST fail-closed", async () => {
+    const originalToken = process.env.ADMIN_API_TOKEN;
+    const originalVercel = process.env.VERCEL;
+    delete process.env.ADMIN_API_TOKEN;
+    process.env.VERCEL = "1";
+
+    try {
+      const { route, store } = await loadRoute();
+      const response = await route.POST(
+        new Request("http://localhost/api/deliveries", {
+          method: "POST",
+          body: JSON.stringify({
+            province: "广东省",
+            city: "深圳市",
+            university: "深圳大学",
+            purchaseTags: [],
+            productTags: [],
+          }),
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+      expect(response.status).toBe(500);
+      expect(await response.json()).toEqual({ error: "管理接口未配置 ADMIN_API_TOKEN" });
+      expect(store.mutateServerRecords).not.toHaveBeenCalled();
+    } finally {
+      if (originalToken === undefined) {
+        delete process.env.ADMIN_API_TOKEN;
+      } else {
+        process.env.ADMIN_API_TOKEN = originalToken;
+      }
+      if (originalVercel === undefined) {
+        delete process.env.VERCEL;
+      } else {
+        process.env.VERCEL = originalVercel;
+      }
+      vi.resetModules();
+    }
   });
 
   it("配置 ADMIN_API_TOKEN 后 POST Bearer token 可写入", async () => {
