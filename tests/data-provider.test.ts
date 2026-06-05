@@ -270,6 +270,30 @@ describe("delivery api route", () => {
     expect(store.mutateServerRecords).not.toHaveBeenCalled();
   });
 
+  it("POST 空白 updatedAt 由系统补齐而不是触发写入异常", async () => {
+    const { route, store } = await loadRoute();
+    const response = await route.POST(
+      new Request("http://localhost/api/deliveries", {
+        method: "POST",
+        body: JSON.stringify({
+          province: "广东省",
+          city: "深圳市",
+          university: "深圳大学",
+          updatedAt: "   ",
+          purchaseTags: [],
+          productTags: [],
+        }),
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const body = await response.json();
+    expect(response.status).toBe(201);
+    expect(body.record.updatedAt).toMatch(/T/);
+    expect(body.record.updatedAt.trim()).not.toBe("");
+    expect(store.mutateServerRecords).toHaveBeenCalledTimes(1);
+  });
+
   it("POST 空记录 ID 返回 400 且不写入", async () => {
     const { route, store } = await loadRoute();
     const response = await route.POST(
@@ -440,6 +464,45 @@ describe("delivery api route", () => {
         delete process.env.VERCEL;
       } else {
         process.env.VERCEL = originalVercel;
+      }
+      vi.resetModules();
+    }
+  });
+
+  it("production 环境缺少 ADMIN_API_TOKEN 时 POST fail-closed", async () => {
+    const originalToken = process.env.ADMIN_API_TOKEN;
+    const originalNodeEnv = process.env.NODE_ENV;
+    delete process.env.ADMIN_API_TOKEN;
+    vi.stubEnv("NODE_ENV", "production");
+
+    try {
+      const { route, store } = await loadRoute();
+      const response = await route.POST(
+        new Request("http://localhost/api/deliveries", {
+          method: "POST",
+          body: JSON.stringify({
+            province: "广东省",
+            city: "深圳市",
+            university: "深圳大学",
+            purchaseTags: [],
+            productTags: [],
+          }),
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+      expect(response.status).toBe(500);
+      expect(await response.json()).toEqual({ error: "管理接口未配置 ADMIN_API_TOKEN" });
+      expect(store.mutateServerRecords).not.toHaveBeenCalled();
+    } finally {
+      if (originalToken === undefined) {
+        delete process.env.ADMIN_API_TOKEN;
+      } else {
+        process.env.ADMIN_API_TOKEN = originalToken;
+      }
+      vi.unstubAllEnvs();
+      if (originalNodeEnv !== undefined) {
+        process.env.NODE_ENV = originalNodeEnv;
       }
       vi.resetModules();
     }

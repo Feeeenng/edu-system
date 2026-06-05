@@ -46,6 +46,6 @@ export function createDeliveryRecord(payload: DeliveryPayload): DeliveryRecord {
   return {
     ...normalized,
     id: normalized.id ?? `delivery-${crypto.randomUUID()}`,
-    updatedAt: normalized.updatedAt ?? new Date().toISOString(),
+    updatedAt: cleanOptionalText(normalized.updatedAt) ?? new Date().toISOString(),
   };
 }

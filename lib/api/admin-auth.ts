@@ -11,7 +11,7 @@ function readBearerToken(request: Request) {
 
 export function requireAdminRequest(request: Request): Response | undefined {
   const expectedToken = process.env.ADMIN_API_TOKEN;
-  if (!expectedToken && process.env.VERCEL) {
+  if (!expectedToken && (process.env.VERCEL || process.env.NODE_ENV === "production")) {
     return NextResponse.json({ error: "管理接口未配置 ADMIN_API_TOKEN" }, { status: 500 });
   }
 

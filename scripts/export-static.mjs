@@ -23,8 +23,8 @@ const EXCLUDED_NAMES = new Set([
 function shouldExclude(source) {
   const relative = path.relative(root, source);
   if (!relative) return false;
-  const [firstSegment] = relative.split(path.sep);
-  return EXCLUDED_NAMES.has(firstSegment) || firstSegment.startsWith(".env");
+  const segments = relative.split(path.sep);
+  return segments.some((segment) => EXCLUDED_NAMES.has(segment) || segment.startsWith(".env"));
 }
 
 async function copyProjectToTemp() {
