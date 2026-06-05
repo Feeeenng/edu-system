@@ -4,6 +4,10 @@ function unique(values: string[]) {
   return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b, "zh-CN"));
 }
 
+function compareByDeliveryCountThenName(a: RegionMetric, b: RegionMetric) {
+  return b.deliveryCount - a.deliveryCount || a.name.localeCompare(b.name, "zh-CN");
+}
+
 function universityKey(record: DeliveryRecord) {
   return `${record.province}::${record.city}::${record.university}`;
 }
@@ -26,31 +30,41 @@ export function buildCoverageSummary(records: DeliveryRecord[]): CoverageSummary
     cityCount: new Set(records.map((item) => `${item.province}::${item.city}`)).size,
     universityCount: new Set(records.map(universityKey)).size,
     deliveryCount: records.length,
-    productCount: new Set(records.flatMap((item) => item.productTags)).size,
-    purchaseTagCount: new Set(records.flatMap((item) => item.purchaseTags)).size,
+    productCount: new Set(records.flatMap((item) => item.productTags).filter(Boolean)).size,
+    purchaseTagCount: new Set(records.flatMap((item) => item.purchaseTags).filter(Boolean)).size,
   };
 }
 
 export function groupByProvince(records: DeliveryRecord[]): RegionMetric[] {
   const groups = new Map<string, DeliveryRecord[]>();
   for (const record of records) {
-    groups.set(record.province, [...(groups.get(record.province) ?? []), record]);
+    const group = groups.get(record.province);
+    if (group) {
+      group.push(record);
+    } else {
+      groups.set(record.province, [record]);
+    }
   }
 
   return Array.from(groups.entries())
     .map(([province, group]) => buildRegionMetric(province, group, province))
-    .sort((a, b) => b.deliveryCount - a.deliveryCount);
+    .sort(compareByDeliveryCountThenName);
 }
 
 export function groupByCity(records: DeliveryRecord[], province: string): RegionMetric[] {
   const groups = new Map<string, DeliveryRecord[]>();
   for (const record of records.filter((item) => item.province === province)) {
-    groups.set(record.city, [...(groups.get(record.city) ?? []), record]);
+    const group = groups.get(record.city);
+    if (group) {
+      group.push(record);
+    } else {
+      groups.set(record.city, [record]);
+    }
   }
 
   return Array.from(groups.entries())
     .map(([city, group]) => buildRegionMetric(city, group, province, city))
-    .sort((a, b) => b.deliveryCount - a.deliveryCount);
+    .sort(compareByDeliveryCountThenName);
 }
 
 export function getUniversityDetail(
