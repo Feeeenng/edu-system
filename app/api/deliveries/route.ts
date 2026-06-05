@@ -63,6 +63,10 @@ export async function DELETE(request: Request) {
   const body = await readJsonBody(request);
   if (!body.ok) return body.response;
 
+  if (!body.data || typeof body.data !== "object" || Array.isArray(body.data)) {
+    return jsonError("请求体必须是对象", 400);
+  }
+
   const { id } = body.data as { id?: unknown };
   if (!id) {
     return jsonError("缺少记录 ID", 400);

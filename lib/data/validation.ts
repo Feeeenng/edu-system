@@ -8,8 +8,23 @@ const REQUIRED_FIELDS: Array<[keyof DeliveryPayload, string]> = [
   ["university", "高校名称"],
 ];
 
+const TAG_FIELDS: Array<[keyof DeliveryPayload, string]> = [
+  ["purchaseTags", "采购标签"],
+  ["productTags", "产品标签"],
+];
+
+const NUMBER_FIELDS: Array<[keyof DeliveryPayload, string]> = [
+  ["longitude", "经度"],
+  ["latitude", "纬度"],
+  ["resourceAmount", "资源数量"],
+];
+
 function hasText(value: unknown) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function validateStringArray(value: unknown) {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
 export function validateDeliveryPayload(payload: unknown): ValidationResult {
@@ -21,6 +36,20 @@ export function validateDeliveryPayload(payload: unknown): ValidationResult {
   const missing = REQUIRED_FIELDS.filter(([key]) => !hasText(record[key])).map(([, label]) => label);
   if (missing.length > 0) {
     return { ok: false, error: `缺少必填字段：${missing.join("、")}` };
+  }
+
+  for (const [key, label] of TAG_FIELDS) {
+    const value = record[key];
+    if (value !== undefined && !validateStringArray(value)) {
+      return { ok: false, error: `${label}必须是字符串数组` };
+    }
+  }
+
+  for (const [key, label] of NUMBER_FIELDS) {
+    const value = record[key];
+    if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value))) {
+      return { ok: false, error: `${label}必须是有效数字` };
+    }
   }
 
   return { ok: true };

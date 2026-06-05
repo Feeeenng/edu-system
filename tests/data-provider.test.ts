@@ -137,6 +137,27 @@ describe("delivery api route", () => {
     expect(store.writeServerRecords).not.toHaveBeenCalled();
   });
 
+  it("POST purchaseTags 类型错误返回 400 且不写入", async () => {
+    const { route, store } = await loadRoute();
+    const response = await route.POST(
+      new Request("http://localhost/api/deliveries", {
+        method: "POST",
+        body: JSON.stringify({
+          province: "广东省",
+          city: "深圳市",
+          university: "深圳大学",
+          purchaseTags: "bad",
+          productTags: [],
+        }),
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "采购标签必须是字符串数组" });
+    expect(store.writeServerRecords).not.toHaveBeenCalled();
+  });
+
   it("PUT 不存在 ID 返回 404 且不写入", async () => {
     const { route, store } = await loadRoute();
     const response = await route.PUT(
@@ -174,6 +195,21 @@ describe("delivery api route", () => {
     expect(store.writeServerRecords).not.toHaveBeenCalled();
   });
 
+  it("DELETE body 为 null 返回 400 且不写入", async () => {
+    const { route, store } = await loadRoute();
+    const response = await route.DELETE(
+      new Request("http://localhost/api/deliveries", {
+        method: "DELETE",
+        body: "null",
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "请求体必须是对象" });
+    expect(store.writeServerRecords).not.toHaveBeenCalled();
+  });
+
   it("PATCH 空数组返回 400 且不替换数据", async () => {
     const { route, store } = await loadRoute();
     const response = await route.PATCH(
@@ -186,6 +222,29 @@ describe("delivery api route", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "交付记录不能为空" });
+    expect(store.replaceServerRecords).not.toHaveBeenCalled();
+  });
+
+  it("PATCH productTags 类型错误返回 400 且不替换数据", async () => {
+    const { route, store } = await loadRoute();
+    const response = await route.PATCH(
+      new Request("http://localhost/api/deliveries", {
+        method: "PATCH",
+        body: JSON.stringify([
+          {
+            province: "广东省",
+            city: "深圳市",
+            university: "深圳大学",
+            purchaseTags: [],
+            productTags: "bad",
+          },
+        ]),
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "第 1 条记录产品标签必须是字符串数组" });
     expect(store.replaceServerRecords).not.toHaveBeenCalled();
   });
 });
