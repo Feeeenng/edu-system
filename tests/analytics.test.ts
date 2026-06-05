@@ -19,15 +19,62 @@ function makeDelivery(overrides: Partial<DeliveryRecord>): DeliveryRecord {
 }
 
 describe("analytics", () => {
-  it("按产品标签和采购标签筛选交付记录", () => {
+  it("按多个产品标签筛选交付记录时要求全部命中", () => {
     const result = filterDeliveries(mockDeliveries, {
-      productTags: ["FastGPT"],
-      purchaseTags: ["AI超融合"],
+      productTags: ["FastGPT", "EDS"],
     });
 
     expect(result.length).toBeGreaterThan(0);
     expect(result.every((item) => item.productTags.includes("FastGPT"))).toBe(true);
+    expect(result.every((item) => item.productTags.includes("EDS"))).toBe(true);
+  });
+
+  it("按多个采购标签筛选交付记录时要求全部命中", () => {
+    const result = filterDeliveries(mockDeliveries, {
+      purchaseTags: ["AI超融合", "信创"],
+    });
+
+    expect(result.length).toBeGreaterThan(0);
     expect(result.every((item) => item.purchaseTags.includes("AI超融合"))).toBe(true);
+    expect(result.every((item) => item.purchaseTags.includes("信创"))).toBe(true);
+  });
+
+  it("按省份城市和高校精确筛选交付记录", () => {
+    const result = filterDeliveries(mockDeliveries, {
+      province: "广东省",
+      city: "深圳市",
+      university: "深圳大学",
+    });
+
+    expect(result.length).toBe(1);
+    expect(result[0]).toMatchObject({
+      province: "广东省",
+      city: "深圳市",
+      university: "深圳大学",
+    });
+  });
+
+  it("按覆盖状态和项目阶段筛选交付记录", () => {
+    const result = filterDeliveries(mockDeliveries, {
+      coverageStatus: "跟进中",
+      projectStage: "测试",
+    });
+
+    expect(result.length).toBeGreaterThan(0);
+    expect(result.every((item) => item.coverageStatus === "跟进中")).toBe(true);
+    expect(result.every((item) => item.projectStage === "测试")).toBe(true);
+  });
+
+  it("按关键词匹配高校负责人交付内容和标签", () => {
+    const universityMatches = filterDeliveries(mockDeliveries, { keyword: "深圳大学" });
+    const ownerMatches = filterDeliveries(mockDeliveries, { keyword: "张明" });
+    const contentMatches = filterDeliveries(mockDeliveries, { keyword: "科研知识库" });
+    const tagMatches = filterDeliveries(mockDeliveries, { keyword: "桌面云" });
+
+    expect(universityMatches.some((item) => item.university === "深圳大学")).toBe(true);
+    expect(ownerMatches.every((item) => item.owner === "张明")).toBe(true);
+    expect(contentMatches.some((item) => item.deliveryContent?.includes("科研知识库"))).toBe(true);
+    expect(tagMatches.every((item) => item.productTags.includes("桌面云"))).toBe(true);
   });
 
   it("统计全国覆盖摘要", () => {
