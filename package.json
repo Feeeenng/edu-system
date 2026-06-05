@@ -14,7 +14,7 @@
     "e2e": "playwright test"
   },
   "dependencies": {
-    "@vercel/blob": "^0.27.3",
+    "@vercel/blob": "^2.4.0",
     "clsx": "^2.1.1",
     "gsap": "^3.12.5",
     "lucide-react": "^0.468.0",

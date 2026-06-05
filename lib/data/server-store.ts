@@ -75,7 +75,8 @@ async function writeBlobRecords(records: DeliveryRecord[]) {
     access: "public",
     contentType: "application/json",
     addRandomSuffix: false,
-    cacheControlMaxAge: 0,
+    allowOverwrite: true,
+    cacheControlMaxAge: 60,
   });
 }
 

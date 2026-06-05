@@ -71,6 +71,39 @@ describe("data validation", () => {
     expect(validateDeliveryPayloadArray([])).toEqual({ ok: false, error: "交付记录不能为空" });
     expect(validateDeliveryPayloadArray({})).toEqual({ ok: false, error: "交付记录必须是数组" });
   });
+
+  it("校验可选字段的运行时类型和枚举值", async () => {
+    const { validateDeliveryPayload } = await import("@/lib/data/validation");
+
+    const basePayload = {
+      province: "广东省",
+      city: "深圳市",
+      university: "深圳大学",
+      purchaseTags: [],
+      productTags: [],
+    };
+
+    expect(validateDeliveryPayload({ ...basePayload, id: 123 })).toEqual({
+      ok: false,
+      error: "记录 ID 必须是字符串",
+    });
+    expect(validateDeliveryPayload({ ...basePayload, coverageStatus: "错误状态" })).toEqual({
+      ok: false,
+      error: "覆盖状态必须是以下值之一：已覆盖、跟进中、未覆盖、暂停",
+    });
+    expect(validateDeliveryPayload({ ...basePayload, projectStage: "错误阶段" })).toEqual({
+      ok: false,
+      error: "项目阶段必须是以下值之一：线索、测试、方案、交付、运维",
+    });
+    expect(validateDeliveryPayload({ ...basePayload, extraJson: [] })).toEqual({
+      ok: false,
+      error: "扩展字段JSON必须是普通对象",
+    });
+    expect(validateDeliveryPayload({ ...basePayload, extraJson: null })).toEqual({
+      ok: false,
+      error: "扩展字段JSON必须是普通对象",
+    });
+  });
 });
 
 describe("delivery api route", () => {
@@ -289,6 +322,45 @@ describe("server store", () => {
       expect(await readFile(filePath, "utf8")).toContain("delivery-local");
     } finally {
       await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("Blob 写入使用固定 key 覆盖和合法缓存时间", async () => {
+    const originalVercel = process.env.VERCEL;
+    const originalToken = process.env.BLOB_READ_WRITE_TOKEN;
+    const put = vi.fn(async () => ({ url: "", downloadUrl: "", pathname: "", contentType: "", contentDisposition: "" }));
+    const list = vi.fn();
+
+    vi.resetModules();
+    vi.doMock("@vercel/blob", () => ({ list, put }));
+
+    try {
+      process.env.VERCEL = "1";
+      process.env.BLOB_READ_WRITE_TOKEN = "token";
+      const { writeServerRecords } = await import("@/lib/data/server-store");
+
+      await writeServerRecords([localRecord]);
+
+      expect(put).toHaveBeenCalledWith("edu-system/deliveries.json", expect.stringContaining("delivery-local"), {
+        access: "public",
+        allowOverwrite: true,
+        addRandomSuffix: false,
+        cacheControlMaxAge: 60,
+        contentType: "application/json",
+      });
+    } finally {
+      if (originalVercel === undefined) {
+        delete process.env.VERCEL;
+      } else {
+        process.env.VERCEL = originalVercel;
+      }
+      if (originalToken === undefined) {
+        delete process.env.BLOB_READ_WRITE_TOKEN;
+      } else {
+        process.env.BLOB_READ_WRITE_TOKEN = originalToken;
+      }
+      vi.doUnmock("@vercel/blob");
+      vi.resetModules();
     }
   });
 });
