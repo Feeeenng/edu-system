@@ -71,6 +71,10 @@ describe("analytics", () => {
     const contentMatches = filterDeliveries(mockDeliveries, { keyword: "科研知识库" });
     const tagMatches = filterDeliveries(mockDeliveries, { keyword: "桌面云" });
 
+    expect(universityMatches.length).toBeGreaterThan(0);
+    expect(ownerMatches.length).toBeGreaterThan(0);
+    expect(contentMatches.length).toBeGreaterThan(0);
+    expect(tagMatches.length).toBeGreaterThan(0);
     expect(universityMatches.some((item) => item.university === "深圳大学")).toBe(true);
     expect(ownerMatches.every((item) => item.owner === "张明")).toBe(true);
     expect(contentMatches.some((item) => item.deliveryContent?.includes("科研知识库"))).toBe(true);
