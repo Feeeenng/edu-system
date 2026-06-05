@@ -20,4 +20,9 @@ describe("mockDeliveries", () => {
     expect(productTags).toContain("EDS");
     expect(productTags).toContain("桌面云");
   });
+
+  it("包含学校设备明细和业务痛点，便于详情页展示", () => {
+    expect(mockDeliveries.every((item) => item.equipmentDetails && item.equipmentDetails.length > 0)).toBe(true);
+    expect(mockDeliveries.every((item) => item.painPoints && item.painPoints.length > 0)).toBe(true);
+  });
 });

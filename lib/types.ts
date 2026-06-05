@@ -16,6 +16,8 @@ export type DeliveryRecord = {
   resourceAmount?: number;
   resourceUnit?: string;
   deliveryContent?: string;
+  equipmentDetails?: string[];
+  painPoints?: string[];
   notes?: string;
   extraJson?: Record<string, unknown>;
   updatedAt: string;

@@ -28,6 +28,8 @@ export function filterDeliveries(records: DeliveryRecord[], filters: DeliveryFil
         record.resourceType,
         ...record.purchaseTags,
         ...record.productTags,
+        ...(record.equipmentDetails ?? []),
+        ...(record.painPoints ?? []),
       ]
         .filter(Boolean)
         .join(" ")

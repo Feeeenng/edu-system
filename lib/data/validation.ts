@@ -11,6 +11,8 @@ const REQUIRED_FIELDS: Array<[keyof DeliveryPayload, string]> = [
 const TAG_FIELDS: Array<[keyof DeliveryPayload, string]> = [
   ["purchaseTags", "采购标签"],
   ["productTags", "产品标签"],
+  ["equipmentDetails", "设备明细"],
+  ["painPoints", "业务痛点"],
 ];
 
 const NUMBER_FIELDS: Array<[keyof DeliveryPayload, string]> = [
@@ -41,6 +43,11 @@ const RECORD_REQUIRED_TEXT_FIELDS: Array<[keyof DeliveryRecord, string]> = [
 const RECORD_TAG_FIELDS: Array<[keyof DeliveryRecord, string]> = [
   ["purchaseTags", "采购标签"],
   ["productTags", "产品标签"],
+];
+
+const RECORD_OPTIONAL_ARRAY_FIELDS: Array<[keyof DeliveryRecord, string]> = [
+  ["equipmentDetails", "设备明细"],
+  ["painPoints", "业务痛点"],
 ];
 
 const RECORD_NUMBER_FIELDS: Array<[keyof DeliveryRecord, string]> = [
@@ -175,6 +182,13 @@ export function validateDeliveryRecordShape(value: unknown): ValidationResult {
 
   for (const [key, label] of RECORD_TAG_FIELDS) {
     if (!validateStringArray(record[key])) {
+      return { ok: false, error: `${label}必须是字符串数组` };
+    }
+  }
+
+  for (const [key, label] of RECORD_OPTIONAL_ARRAY_FIELDS) {
+    const fieldValue = record[key];
+    if (fieldValue !== undefined && !validateStringArray(fieldValue)) {
       return { ok: false, error: `${label}必须是字符串数组` };
     }
   }

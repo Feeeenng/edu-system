@@ -154,6 +154,8 @@ export function parseDeliveryCsv(csvText: string): CsvParseResult {
       resourceAmount,
       resourceUnit: trimText(normalized.resourceUnit),
       deliveryContent: trimText(normalized.deliveryContent),
+      equipmentDetails: splitTags(normalized.equipmentDetails),
+      painPoints: splitTags(normalized.painPoints),
       notes: trimText(normalized.notes),
       extraJson,
     });

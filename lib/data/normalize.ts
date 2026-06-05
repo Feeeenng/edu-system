@@ -36,6 +36,8 @@ export function normalizeDeliveryPayload(payload: DeliveryPayload): DeliveryPayl
     resourceAmount: cleanNumber(payload.resourceAmount),
     resourceUnit: cleanOptionalText(payload.resourceUnit),
     deliveryContent: cleanOptionalText(payload.deliveryContent),
+    equipmentDetails: cleanTags(payload.equipmentDetails),
+    painPoints: cleanTags(payload.painPoints),
     notes: cleanOptionalText(payload.notes),
     extraJson: payload.extraJson,
   };

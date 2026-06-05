@@ -16,8 +16,8 @@ describe("csv", () => {
 
   it("解析中文列名并拆分标签", () => {
     const csv = [
-      "省份,地区/城市,高校名称,采购标签,产品标签,资源数量,交付内容",
-      "广东省,深圳市,深圳大学,VMware替换;信创,SDDC;EDS,12,测试导入",
+      "省份,地区/城市,高校名称,采购标签,产品标签,资源数量,交付内容,设备明细,业务痛点",
+      "广东省,深圳市,深圳大学,VMware替换;信创,SDDC;EDS,12,测试导入,超融合节点x6；存储交换机x2,VMware授权成本高；实验室资源申请慢",
     ].join("\n");
 
     const result = parseDeliveryCsv(csv);
@@ -27,6 +27,8 @@ describe("csv", () => {
     expect(result.records[0].purchaseTags).toEqual(["VMware替换", "信创"]);
     expect(result.records[0].productTags).toEqual(["SDDC", "EDS"]);
     expect(result.records[0].resourceAmount).toBe(12);
+    expect(result.records[0].equipmentDetails).toEqual(["超融合节点x6", "存储交换机x2"]);
+    expect(result.records[0].painPoints).toEqual(["VMware授权成本高", "实验室资源申请慢"]);
   });
 
   it("返回缺少必填字段的行号错误", () => {
@@ -44,6 +46,8 @@ describe("csv", () => {
     expect(csv).toContain("省份");
     expect(csv).toContain("清华大学");
     expect(csv).toContain("FastGPT;EDS");
+    expect(csv).toContain("设备明细");
+    expect(csv).toContain("业务痛点");
   });
 
   it("返回 PapaParse 格式错误", () => {
@@ -166,5 +170,7 @@ describe("csv", () => {
     expect(result.records[0].university).toBe("清华大学");
     expect(result.records[0].productTags).toEqual(["FastGPT", "EDS"]);
     expect(result.records[0].resourceAmount).toBe(12);
+    expect(result.records[0].equipmentDetails?.length).toBeGreaterThan(0);
+    expect(result.records[0].painPoints?.length).toBeGreaterThan(0);
   });
 });

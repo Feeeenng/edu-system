@@ -70,15 +70,21 @@ describe("analytics", () => {
     const ownerMatches = filterDeliveries(mockDeliveries, { keyword: "张明" });
     const contentMatches = filterDeliveries(mockDeliveries, { keyword: "科研知识库" });
     const tagMatches = filterDeliveries(mockDeliveries, { keyword: "桌面云" });
+    const equipmentMatches = filterDeliveries(mockDeliveries, { keyword: "SDDC控制器" });
+    const painPointMatches = filterDeliveries(mockDeliveries, { keyword: "VMware授权成本" });
 
     expect(universityMatches.length).toBeGreaterThan(0);
     expect(ownerMatches.length).toBeGreaterThan(0);
     expect(contentMatches.length).toBeGreaterThan(0);
     expect(tagMatches.length).toBeGreaterThan(0);
+    expect(equipmentMatches.length).toBeGreaterThan(0);
+    expect(painPointMatches.length).toBeGreaterThan(0);
     expect(universityMatches.some((item) => item.university === "深圳大学")).toBe(true);
     expect(ownerMatches.every((item) => item.owner === "张明")).toBe(true);
     expect(contentMatches.some((item) => item.deliveryContent?.includes("科研知识库"))).toBe(true);
     expect(tagMatches.every((item) => item.productTags.includes("桌面云"))).toBe(true);
+    expect(equipmentMatches.some((item) => item.equipmentDetails?.includes("SDDC控制器x1"))).toBe(true);
+    expect(painPointMatches.some((item) => item.painPoints?.includes("VMware授权成本持续上升"))).toBe(true);
   });
 
   it("统计全国覆盖摘要", () => {

@@ -23,6 +23,8 @@ export const CSV_COLUMNS: CsvColumn[] = [
   { key: "resourceAmount", label: "资源数量", aliases: ["resourceAmount"] },
   { key: "resourceUnit", label: "资源单位", aliases: ["resourceUnit"] },
   { key: "deliveryContent", label: "交付内容", aliases: ["deliveryContent"] },
+  { key: "equipmentDetails", label: "设备明细", aliases: ["设备", "采购设备", "equipmentDetails"] },
+  { key: "painPoints", label: "业务痛点", aliases: ["痛点", "painPoints"] },
   { key: "notes", label: "备注", aliases: ["notes"] },
   { key: "extraJson", label: "扩展字段JSON", aliases: ["extraJson"] },
 ];
