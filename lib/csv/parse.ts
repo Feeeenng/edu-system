@@ -1,4 +1,4 @@
-import Papa from "papaparse";
+import Papa, { type ParseError } from "papaparse";
 import { resolveColumnKey } from "@/lib/csv/schema";
 import type { DeliveryPayload } from "@/lib/types";
 
@@ -15,20 +15,70 @@ function splitTags(value: unknown): string[] {
     .filter(Boolean);
 }
 
-function parseNumber(value: unknown): number | undefined {
-  if (value === undefined || value === null || value === "") return undefined;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
+function trimText(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
 }
 
-function parseExtraJson(value: unknown): Record<string, unknown> | undefined {
-  if (typeof value !== "string" || value.trim() === "") return undefined;
+function formatPapaError(error: ParseError): string {
+  const line =
+    typeof error.row === "number" ? error.row + (error.type === "FieldMismatch" ? 2 : 1) : 1;
+  return `第 ${line} 行 CSV 解析错误（${error.code}）：${error.message}`;
+}
+
+function parseNumberField(value: unknown, label: string, errors: string[]): number | undefined {
+  const normalized = trimText(value);
+  if (normalized === undefined) return undefined;
+
+  const parsed = Number(normalized);
+  if (Number.isFinite(parsed)) return parsed;
+
+  errors.push(`${label}必须是有效数字`);
+  return undefined;
+}
+
+function parseExtraJson(value: unknown, errors: string[]): Record<string, unknown> | undefined {
+  const normalized = trimText(value);
+  if (normalized === undefined) return undefined;
+
   try {
-    const parsed = JSON.parse(value);
-    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? parsed : undefined;
+    const parsed = JSON.parse(normalized);
+    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+      return parsed;
+    }
   } catch {
-    return undefined;
+    // 统一在下方返回字段级错误，避免把非法 JSON 静默丢弃。
   }
+
+  errors.push("扩展字段JSON必须是合法 JSON 对象");
+  return undefined;
+}
+
+function parseEnumField<T extends string>(
+  value: unknown,
+  label: string,
+  validValues: readonly T[],
+  errors: string[],
+): T | undefined {
+  const normalized = trimText(value);
+  if (normalized === undefined) return undefined;
+
+  if (validValues.includes(normalized as T)) return normalized as T;
+
+  errors.push(`${label}必须是以下值之一：${validValues.join("、")}`);
+  return undefined;
+}
+
+const COVERAGE_STATUSES = ["已覆盖", "跟进中", "未覆盖", "暂停"] as const;
+const PROJECT_STAGES = ["线索", "测试", "方案", "交付", "运维"] as const;
+
+function parseFieldMismatchRow(error: ParseError): number | undefined {
+  return error.type === "FieldMismatch" && typeof error.row === "number" ? error.row : undefined;
+}
+
+function hasStructuralParseError(error: ParseError): boolean {
+  return error.type !== "FieldMismatch";
 }
 
 export function parseDeliveryCsv(csvText: string): CsvParseResult {
@@ -40,8 +90,21 @@ export function parseDeliveryCsv(csvText: string): CsvParseResult {
 
   const errors: string[] = [];
   const records: DeliveryPayload[] = [];
+  const parserErrorRows = new Set<number>();
+
+  parsed.errors.forEach((error) => {
+    errors.push(formatPapaError(error));
+    const errorRow = parseFieldMismatchRow(error);
+    if (errorRow !== undefined) parserErrorRows.add(errorRow);
+  });
+
+  if (parsed.errors.some(hasStructuralParseError)) {
+    return { records, errors };
+  }
 
   parsed.data.forEach((row, index) => {
+    if (parserErrorRows.has(index)) return;
+
     const line = index + 2;
     const normalized: Partial<Record<keyof DeliveryPayload, string>> = {};
 
@@ -61,25 +124,38 @@ export function parseDeliveryCsv(csvText: string): CsvParseResult {
       return;
     }
 
+    const rowErrors: string[] = [];
+    const longitude = parseNumberField(normalized.longitude, "经度", rowErrors);
+    const latitude = parseNumberField(normalized.latitude, "纬度", rowErrors);
+    const coverageStatus = parseEnumField(normalized.coverageStatus, "覆盖状态", COVERAGE_STATUSES, rowErrors);
+    const projectStage = parseEnumField(normalized.projectStage, "项目阶段", PROJECT_STAGES, rowErrors);
+    const resourceAmount = parseNumberField(normalized.resourceAmount, "资源数量", rowErrors);
+    const extraJson = parseExtraJson(normalized.extraJson, rowErrors);
+
+    if (rowErrors.length > 0) {
+      errors.push(`第 ${line} 行字段错误：${rowErrors.join("；")}`);
+      return;
+    }
+
     records.push({
       province: normalized.province!.trim(),
       city: normalized.city!.trim(),
       university: normalized.university!.trim(),
-      longitude: parseNumber(normalized.longitude),
-      latitude: parseNumber(normalized.latitude),
-      customerStatus: normalized.customerStatus?.trim(),
-      coverageStatus: normalized.coverageStatus?.trim() as DeliveryPayload["coverageStatus"],
-      projectStage: normalized.projectStage?.trim() as DeliveryPayload["projectStage"],
-      deliveryDate: normalized.deliveryDate?.trim(),
-      owner: normalized.owner?.trim(),
+      longitude,
+      latitude,
+      customerStatus: trimText(normalized.customerStatus),
+      coverageStatus,
+      projectStage,
+      deliveryDate: trimText(normalized.deliveryDate),
+      owner: trimText(normalized.owner),
       purchaseTags: splitTags(normalized.purchaseTags),
       productTags: splitTags(normalized.productTags),
-      resourceType: normalized.resourceType?.trim(),
-      resourceAmount: parseNumber(normalized.resourceAmount),
-      resourceUnit: normalized.resourceUnit?.trim(),
-      deliveryContent: normalized.deliveryContent?.trim(),
-      notes: normalized.notes?.trim(),
-      extraJson: parseExtraJson(normalized.extraJson),
+      resourceType: trimText(normalized.resourceType),
+      resourceAmount,
+      resourceUnit: trimText(normalized.resourceUnit),
+      deliveryContent: trimText(normalized.deliveryContent),
+      notes: trimText(normalized.notes),
+      extraJson,
     });
   });
 
