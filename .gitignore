@@ -4,6 +4,8 @@ node_modules/
 next-env.d.ts
 out/
 dist/
+test-results/
+playwright-report/
 .env*
 !.env.example
 data/deliveries.local.json
