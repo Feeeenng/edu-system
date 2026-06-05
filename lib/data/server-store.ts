@@ -1,4 +1,4 @@
-import { del, list, put } from "@vercel/blob";
+import { list, put } from "@vercel/blob";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createDeliveryRecord } from "@/lib/data/normalize";
@@ -12,17 +12,43 @@ function shouldUseBlobStore() {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN && process.env.VERCEL);
 }
 
-async function readLocalRecords(): Promise<DeliveryRecord[]> {
+function isMissingFileError(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
+}
+
+function parseRecordArray(raw: string, source: string): DeliveryRecord[] {
+  let parsed: unknown;
   try {
-    const raw = await readFile(LOCAL_DATA_PATH, "utf8");
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : mockDeliveries;
-  } catch {
-    return mockDeliveries;
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    throw new Error(`${source}损坏：JSON 格式错误`, { cause: error });
+  }
+
+  if (!Array.isArray(parsed)) {
+    throw new Error(`${source}损坏：内容必须是数组`);
+  }
+
+  return parsed as DeliveryRecord[];
+}
+
+function assertWritableStoreConfigured() {
+  if (process.env.VERCEL && !process.env.BLOB_READ_WRITE_TOKEN) {
+    throw new Error("Vercel Blob 未配置 BLOB_READ_WRITE_TOKEN，无法持久化交付数据");
+  }
+}
+
+export async function readLocalDeliveryRecords(filePath = LOCAL_DATA_PATH): Promise<DeliveryRecord[]> {
+  try {
+    const raw = await readFile(filePath, "utf8");
+    return parseRecordArray(raw, "本地交付数据文件");
+  } catch (error) {
+    if (isMissingFileError(error)) return mockDeliveries;
+    throw error;
   }
 }
 
 async function writeLocalRecords(records: DeliveryRecord[]) {
+  assertWritableStoreConfigured();
   await mkdir(path.dirname(LOCAL_DATA_PATH), { recursive: true });
   await writeFile(LOCAL_DATA_PATH, JSON.stringify(records, null, 2), "utf8");
 }
@@ -31,13 +57,16 @@ async function readBlobRecords(): Promise<DeliveryRecord[]> {
   const blobs = await list({ prefix: BLOB_KEY, limit: 1 });
   const target = blobs.blobs.find((blob) => blob.pathname === BLOB_KEY);
   if (!target) return mockDeliveries;
+
   const response = await fetch(target.url, { cache: "no-store" });
-  const parsed = await response.json();
-  return Array.isArray(parsed) ? parsed : mockDeliveries;
+  if (!response.ok) {
+    throw new Error(`Vercel Blob 交付数据读取失败：HTTP ${response.status}`);
+  }
+
+  return parseRecordArray(await response.text(), "Vercel Blob 交付数据");
 }
 
 async function writeBlobRecords(records: DeliveryRecord[]) {
-  await del(BLOB_KEY).catch(() => undefined);
   await put(BLOB_KEY, JSON.stringify(records, null, 2), {
     access: "public",
     contentType: "application/json",
@@ -46,7 +75,7 @@ async function writeBlobRecords(records: DeliveryRecord[]) {
 }
 
 export async function readServerRecords(): Promise<DeliveryRecord[]> {
-  return shouldUseBlobStore() ? readBlobRecords() : readLocalRecords();
+  return shouldUseBlobStore() ? readBlobRecords() : readLocalDeliveryRecords();
 }
 
 export async function writeServerRecords(records: DeliveryRecord[]) {

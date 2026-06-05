@@ -1,7 +1,7 @@
 import { exportDeliveriesToCsv } from "@/lib/csv/export";
 import { readServerRecords } from "@/lib/data/server-store";
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-static";
 
 export async function GET() {
   const csv = exportDeliveriesToCsv(await readServerRecords());
@@ -11,4 +11,8 @@ export async function GET() {
       "Content-Disposition": "attachment; filename=deliveries.csv",
     },
   });
+}
+
+export async function POST() {
+  return new Response(null, { status: 405 });
 }

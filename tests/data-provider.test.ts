@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDeliveryRecord, normalizeDeliveryPayload } from "@/lib/data/normalize";
+import type { DeliveryPayload, DeliveryRecord } from "@/lib/types";
 
 describe("data normalize", () => {
   it("为导入记录补齐 id、updatedAt 和标签数组", () => {
@@ -31,5 +35,173 @@ describe("data normalize", () => {
     expect(payload.purchaseTags).toEqual([]);
     expect(payload.productTags).toEqual([]);
     expect(payload.resourceAmount).toBeUndefined();
+  });
+});
+
+describe("data validation", () => {
+  it("校验交付 payload 的必填字段", async () => {
+    const { validateDeliveryPayload } = await import("@/lib/data/validation");
+
+    expect(
+      validateDeliveryPayload({
+        province: "",
+        city: "深圳市",
+        university: "深圳大学",
+        purchaseTags: [],
+        productTags: [],
+      }),
+    ).toEqual({ ok: false, error: "缺少必填字段：省份" });
+
+    expect(
+      validateDeliveryPayload({
+        province: "广东省",
+        city: "深圳市",
+        university: "深圳大学",
+        purchaseTags: [],
+        productTags: [],
+      }),
+    ).toEqual({ ok: true });
+  });
+
+  it("校验批量替换 payload 必须是非空数组", async () => {
+    const { validateDeliveryPayloadArray } = await import("@/lib/data/validation");
+
+    expect(validateDeliveryPayloadArray([])).toEqual({ ok: false, error: "交付记录不能为空" });
+    expect(validateDeliveryPayloadArray({})).toEqual({ ok: false, error: "交付记录必须是数组" });
+  });
+});
+
+describe("delivery api route", () => {
+  const existingRecord: DeliveryRecord = {
+    id: "delivery-existing",
+    province: "广东省",
+    city: "深圳市",
+    university: "深圳大学",
+    purchaseTags: [],
+    productTags: ["SDDC"],
+    updatedAt: "2026-06-05T00:00:00.000Z",
+  };
+
+  afterEach(() => {
+    vi.doUnmock("@/lib/data/server-store");
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  async function loadRoute(records: DeliveryRecord[] = [existingRecord]) {
+    const store = {
+      readServerRecords: vi.fn(async () => records),
+      replaceServerRecords: vi.fn(async (payloads: DeliveryPayload[]) =>
+        payloads.map((payload, index) => ({
+          ...payload,
+          id: payload.id ?? `delivery-${index}`,
+          updatedAt: payload.updatedAt ?? "2026-06-05T00:00:00.000Z",
+        })),
+      ),
+      writeServerRecords: vi.fn(async () => undefined),
+    };
+
+    vi.resetModules();
+    vi.doMock("@/lib/data/server-store", () => store);
+    const route = await import("@/app/api/deliveries/route");
+    return { route, store };
+  }
+
+  it("POST malformed JSON 返回 400", async () => {
+    const { route, store } = await loadRoute();
+    const response = await route.POST(
+      new Request("http://localhost/api/deliveries", {
+        method: "POST",
+        body: "{",
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "请求 JSON 格式错误" });
+    expect(store.writeServerRecords).not.toHaveBeenCalled();
+  });
+
+  it("POST 缺少必填字段返回 400", async () => {
+    const { route, store } = await loadRoute();
+    const response = await route.POST(
+      new Request("http://localhost/api/deliveries", {
+        method: "POST",
+        body: JSON.stringify({ province: "广东省", city: "", university: "深圳大学" }),
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "缺少必填字段：地区/城市" });
+    expect(store.writeServerRecords).not.toHaveBeenCalled();
+  });
+
+  it("PUT 不存在 ID 返回 404 且不写入", async () => {
+    const { route, store } = await loadRoute();
+    const response = await route.PUT(
+      new Request("http://localhost/api/deliveries", {
+        method: "PUT",
+        body: JSON.stringify({
+          id: "delivery-missing",
+          province: "广东省",
+          city: "深圳市",
+          university: "深圳大学",
+          purchaseTags: [],
+          productTags: [],
+        }),
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "记录不存在" });
+    expect(store.writeServerRecords).not.toHaveBeenCalled();
+  });
+
+  it("DELETE 不存在 ID 返回 404 且不写入", async () => {
+    const { route, store } = await loadRoute();
+    const response = await route.DELETE(
+      new Request("http://localhost/api/deliveries", {
+        method: "DELETE",
+        body: JSON.stringify({ id: "delivery-missing" }),
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "记录不存在" });
+    expect(store.writeServerRecords).not.toHaveBeenCalled();
+  });
+
+  it("PATCH 空数组返回 400 且不替换数据", async () => {
+    const { route, store } = await loadRoute();
+    const response = await route.PATCH(
+      new Request("http://localhost/api/deliveries", {
+        method: "PATCH",
+        body: JSON.stringify([]),
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "交付记录不能为空" });
+    expect(store.replaceServerRecords).not.toHaveBeenCalled();
+  });
+});
+
+describe("server store", () => {
+  it("本地数据文件损坏时抛错而不是回退 mock", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "edu-deliveries-"));
+    const filePath = path.join(dir, "deliveries.local.json");
+
+    try {
+      await writeFile(filePath, "{bad json", "utf8");
+      const { readLocalDeliveryRecords } = await import("@/lib/data/server-store");
+
+      await expect(readLocalDeliveryRecords(filePath)).rejects.toThrow("本地交付数据文件损坏");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
