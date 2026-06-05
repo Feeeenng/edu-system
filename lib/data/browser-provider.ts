@@ -5,6 +5,7 @@ import type { DeliveryDataProvider } from "@/lib/data/provider";
 import type { DeliveryPayload, DeliveryRecord } from "@/lib/types";
 
 const STORAGE_KEY = "edu-system.deliveries";
+const CORRUPT_STORAGE_ERROR = "本地浏览器数据损坏，请先导出/清理后再写入";
 
 type BrowserReadResult =
   | { status: "missing"; records: DeliveryRecord[] }
@@ -27,6 +28,14 @@ function writeRecords(records: DeliveryRecord[]) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
 }
 
+function readWritableRecords() {
+  const current = readRecords();
+  if (current.status === "corrupt") {
+    throw new Error(CORRUPT_STORAGE_ERROR);
+  }
+  return current.records;
+}
+
 export function createBrowserProvider(seed: DeliveryRecord[] = []): DeliveryDataProvider {
   return {
     async list() {
@@ -41,24 +50,25 @@ export function createBrowserProvider(seed: DeliveryRecord[] = []): DeliveryData
       return current.records;
     },
     async replaceAll(payloads) {
+      readWritableRecords();
       const records = payloads.map(createDeliveryRecord);
       writeRecords(records);
       return records;
     },
     async create(payload) {
-      const records = readRecords().records;
+      const records = readWritableRecords();
       const record = createDeliveryRecord(payload);
       writeRecords([record, ...records]);
       return record;
     },
     async update(id: string, payload: DeliveryPayload) {
-      const records = readRecords().records;
+      const records = readWritableRecords();
       const updated = createDeliveryRecord({ ...payload, id, updatedAt: new Date().toISOString() });
       writeRecords(records.map((record) => (record.id === id ? updated : record)));
       return updated;
     },
     async remove(id: string) {
-      writeRecords(readRecords().records.filter((record) => record.id !== id));
+      writeRecords(readWritableRecords().filter((record) => record.id !== id));
     },
   };
 }

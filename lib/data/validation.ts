@@ -31,7 +31,12 @@ function validateStringArray(value: unknown) {
 }
 
 function isPlainRecord(value: unknown) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 function validateEnum(value: unknown, label: string, validValues: readonly string[]): ValidationResult {

@@ -104,6 +104,36 @@ describe("data validation", () => {
       error: "扩展字段JSON必须是普通对象",
     });
   });
+
+  it("extraJson 只接受 plain object", async () => {
+    const { validateDeliveryPayload } = await import("@/lib/data/validation");
+
+    class ExtraJsonValue {
+      value = "bad";
+    }
+
+    const basePayload = {
+      province: "广东省",
+      city: "深圳市",
+      university: "深圳大学",
+      purchaseTags: [],
+      productTags: [],
+    };
+
+    expect(validateDeliveryPayload({ ...basePayload, extraJson: {} })).toEqual({ ok: true });
+    expect(validateDeliveryPayload({ ...basePayload, extraJson: new Date() })).toEqual({
+      ok: false,
+      error: "扩展字段JSON必须是普通对象",
+    });
+    expect(validateDeliveryPayload({ ...basePayload, extraJson: new Map() })).toEqual({
+      ok: false,
+      error: "扩展字段JSON必须是普通对象",
+    });
+    expect(validateDeliveryPayload({ ...basePayload, extraJson: new ExtraJsonValue() })).toEqual({
+      ok: false,
+      error: "扩展字段JSON必须是普通对象",
+    });
+  });
 });
 
 describe("delivery api route", () => {
@@ -388,6 +418,29 @@ describe("browser provider", () => {
     const provider = createBrowserProvider(seed);
 
     expect(await provider.list()).toEqual(seed);
+    expect(window.localStorage.getItem("edu-system.deliveries")).toBe("{bad json");
+  });
+
+  it("localStorage 损坏时拒绝写操作且保留坏数据", async () => {
+    window.localStorage.setItem("edu-system.deliveries", "{bad json");
+    const { createBrowserProvider } = await import("@/lib/data/browser-provider");
+    const provider = createBrowserProvider();
+    const payload: DeliveryPayload = {
+      province: "广东省",
+      city: "深圳市",
+      university: "深圳大学",
+      purchaseTags: [],
+      productTags: [],
+    };
+
+    await expect(provider.replaceAll([payload])).rejects.toThrow("本地浏览器数据损坏，请先导出/清理后再写入");
+    await expect(provider.create(payload)).rejects.toThrow("本地浏览器数据损坏，请先导出/清理后再写入");
+    await expect(provider.update("delivery-existing", payload)).rejects.toThrow(
+      "本地浏览器数据损坏，请先导出/清理后再写入",
+    );
+    await expect(provider.remove("delivery-existing")).rejects.toThrow(
+      "本地浏览器数据损坏，请先导出/清理后再写入",
+    );
     expect(window.localStorage.getItem("edu-system.deliveries")).toBe("{bad json");
   });
 });
