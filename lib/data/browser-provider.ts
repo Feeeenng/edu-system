@@ -16,7 +16,7 @@ type BrowserReadResult =
 function readRecords(): BrowserReadResult {
   if (typeof window === "undefined") return { status: "missing", records: [] };
   const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) return { status: "missing", records: [] };
+  if (raw === null) return { status: "missing", records: [] };
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) {

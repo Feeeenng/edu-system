@@ -656,6 +656,35 @@ describe("browser provider", () => {
     expect(window.localStorage.getItem("edu-system.deliveries")).toBe("{bad json");
   });
 
+  it("localStorage 空字符串视为损坏数据且拒绝覆盖", async () => {
+    const seed: DeliveryRecord[] = [
+      {
+        id: "delivery-seed",
+        province: "广东省",
+        city: "深圳市",
+        university: "深圳大学",
+        purchaseTags: [],
+        productTags: [],
+        updatedAt: "2026-06-05T00:00:00.000Z",
+      },
+    ];
+    const payload: DeliveryPayload = {
+      province: "广东省",
+      city: "深圳市",
+      university: "深圳大学",
+      purchaseTags: [],
+      productTags: [],
+    };
+
+    window.localStorage.setItem("edu-system.deliveries", "");
+    const { createBrowserProvider } = await import("@/lib/data/browser-provider");
+    const provider = createBrowserProvider(seed);
+
+    expect(await provider.list()).toEqual(seed);
+    await expect(provider.create(payload)).rejects.toThrow("本地浏览器数据损坏，请先导出/清理后再写入");
+    expect(window.localStorage.getItem("edu-system.deliveries")).toBe("");
+  });
+
   it("localStorage 持久化空数组时 list 不回灌 seed", async () => {
     const seed: DeliveryRecord[] = [
       {
