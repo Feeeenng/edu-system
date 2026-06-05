@@ -2,6 +2,7 @@
 
 import { createDeliveryRecord } from "@/lib/data/normalize";
 import type { DeliveryDataProvider } from "@/lib/data/provider";
+import { validateDeliveryRecordShape } from "@/lib/data/validation";
 import type { DeliveryPayload, DeliveryRecord } from "@/lib/types";
 
 const STORAGE_KEY = "edu-system.deliveries";
@@ -18,7 +19,15 @@ function readRecords(): BrowserReadResult {
   if (!raw) return { status: "missing", records: [] };
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? { status: "valid", records: parsed } : { status: "corrupt", records: [] };
+    if (!Array.isArray(parsed)) {
+      return { status: "corrupt", records: [] };
+    }
+
+    if (parsed.some((record) => !validateDeliveryRecordShape(record).ok)) {
+      return { status: "corrupt", records: [] };
+    }
+
+    return { status: "valid", records: parsed };
   } catch {
     return { status: "corrupt", records: [] };
   }
@@ -43,7 +52,7 @@ export function createBrowserProvider(seed: DeliveryRecord[] = []): DeliveryData
       if (current.status === "corrupt") {
         return seed;
       }
-      if (current.records.length === 0 && seed.length > 0) {
+      if (current.status === "missing" && seed.length > 0) {
         writeRecords(seed);
         return seed;
       }

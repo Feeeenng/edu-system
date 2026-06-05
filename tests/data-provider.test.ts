@@ -156,6 +156,10 @@ describe("delivery api route", () => {
   async function loadRoute(records: DeliveryRecord[] = [existingRecord]) {
     const store = {
       readServerRecords: vi.fn(async () => records),
+      mutateServerRecords: vi.fn(async (mutator: (current: DeliveryRecord[]) => DeliveryRecord[] | Promise<DeliveryRecord[]>) => {
+        records = await mutator(records);
+        return records;
+      }),
       replaceServerRecords: vi.fn(async (payloads: DeliveryPayload[]) =>
         payloads.map((payload, index) => ({
           ...payload,
@@ -172,6 +176,26 @@ describe("delivery api route", () => {
     return { route, store };
   }
 
+  async function withAdminToken<T>(token: string | undefined, callback: () => Promise<T>) {
+    const originalToken = process.env.ADMIN_API_TOKEN;
+    if (token === undefined) {
+      delete process.env.ADMIN_API_TOKEN;
+    } else {
+      process.env.ADMIN_API_TOKEN = token;
+    }
+
+    try {
+      return await callback();
+    } finally {
+      if (originalToken === undefined) {
+        delete process.env.ADMIN_API_TOKEN;
+      } else {
+        process.env.ADMIN_API_TOKEN = originalToken;
+      }
+      vi.resetModules();
+    }
+  }
+
   it("POST malformed JSON 返回 400", async () => {
     const { route, store } = await loadRoute();
     const response = await route.POST(
@@ -184,7 +208,7 @@ describe("delivery api route", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "请求 JSON 格式错误" });
-    expect(store.writeServerRecords).not.toHaveBeenCalled();
+    expect(store.mutateServerRecords).not.toHaveBeenCalled();
   });
 
   it("POST 缺少必填字段返回 400", async () => {
@@ -199,7 +223,7 @@ describe("delivery api route", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "缺少必填字段：地区/城市" });
-    expect(store.writeServerRecords).not.toHaveBeenCalled();
+    expect(store.mutateServerRecords).not.toHaveBeenCalled();
   });
 
   it("POST purchaseTags 类型错误返回 400 且不写入", async () => {
@@ -220,7 +244,7 @@ describe("delivery api route", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "采购标签必须是字符串数组" });
-    expect(store.writeServerRecords).not.toHaveBeenCalled();
+    expect(store.mutateServerRecords).not.toHaveBeenCalled();
   });
 
   it("PUT 不存在 ID 返回 404 且不写入", async () => {
@@ -242,7 +266,7 @@ describe("delivery api route", () => {
 
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "记录不存在" });
-    expect(store.writeServerRecords).not.toHaveBeenCalled();
+    expect(store.mutateServerRecords).toHaveBeenCalledTimes(1);
   });
 
   it("DELETE 不存在 ID 返回 404 且不写入", async () => {
@@ -257,7 +281,7 @@ describe("delivery api route", () => {
 
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "记录不存在" });
-    expect(store.writeServerRecords).not.toHaveBeenCalled();
+    expect(store.mutateServerRecords).toHaveBeenCalledTimes(1);
   });
 
   it("DELETE body 为 null 返回 400 且不写入", async () => {
@@ -272,7 +296,7 @@ describe("delivery api route", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "请求体必须是对象" });
-    expect(store.writeServerRecords).not.toHaveBeenCalled();
+    expect(store.mutateServerRecords).not.toHaveBeenCalled();
   });
 
   it("PATCH 空数组返回 400 且不替换数据", async () => {
@@ -287,7 +311,7 @@ describe("delivery api route", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "交付记录不能为空" });
-    expect(store.replaceServerRecords).not.toHaveBeenCalled();
+    expect(store.mutateServerRecords).not.toHaveBeenCalled();
   });
 
   it("PATCH productTags 类型错误返回 400 且不替换数据", async () => {
@@ -310,7 +334,82 @@ describe("delivery api route", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "第 1 条记录产品标签必须是字符串数组" });
-    expect(store.replaceServerRecords).not.toHaveBeenCalled();
+    expect(store.mutateServerRecords).not.toHaveBeenCalled();
+  });
+
+  it("配置 ADMIN_API_TOKEN 后 POST 无 token 返回 401 且不写入", async () => {
+    await withAdminToken("secret-token", async () => {
+      const { route, store } = await loadRoute();
+      const response = await route.POST(
+        new Request("http://localhost/api/deliveries", {
+          method: "POST",
+          body: JSON.stringify({
+            province: "广东省",
+            city: "深圳市",
+            university: "深圳大学",
+            purchaseTags: [],
+            productTags: [],
+          }),
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+      expect(response.status).toBe(401);
+      expect(await response.json()).toEqual({ error: "未授权访问" });
+      expect(store.mutateServerRecords).not.toHaveBeenCalled();
+    });
+  });
+
+  it("配置 ADMIN_API_TOKEN 后 POST Bearer token 可写入", async () => {
+    await withAdminToken("secret-token", async () => {
+      const { route, store } = await loadRoute();
+      const response = await route.POST(
+        new Request("http://localhost/api/deliveries", {
+          method: "POST",
+          body: JSON.stringify({
+            province: "广东省",
+            city: "深圳市",
+            university: "深圳大学",
+            purchaseTags: [],
+            productTags: [],
+          }),
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer secret-token",
+          },
+        }),
+      );
+
+      expect(response.status).toBe(201);
+      expect(store.mutateServerRecords).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("GET 保持公开读取", async () => {
+    await withAdminToken("secret-token", async () => {
+      const { route } = await loadRoute();
+      const response = await route.GET();
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ records: [existingRecord] });
+    });
+  });
+
+  it("export GET 配置 ADMIN_API_TOKEN 后无 token 返回 401", async () => {
+    await withAdminToken("secret-token", async () => {
+      const store = {
+        readServerRecords: vi.fn(async () => [existingRecord]),
+      };
+
+      vi.resetModules();
+      vi.doMock("@/lib/data/server-store", () => store);
+      const route = await import("@/app/api/deliveries/export/route");
+      const response = await route.GET(new Request("http://localhost/api/deliveries/export"));
+
+      expect(response.status).toBe(401);
+      expect(await response.json()).toEqual({ error: "未授权访问" });
+      expect(store.readServerRecords).not.toHaveBeenCalled();
+    });
   });
 });
 
@@ -339,6 +438,20 @@ describe("server store", () => {
     }
   });
 
+  it("本地数据文件元素损坏时抛错而不是回退 mock", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "edu-deliveries-"));
+    const filePath = path.join(dir, "deliveries.local.json");
+
+    try {
+      await writeFile(filePath, "[null]", "utf8");
+      const { readLocalDeliveryRecords } = await import("@/lib/data/server-store");
+
+      await expect(readLocalDeliveryRecords(filePath)).rejects.toThrow("本地交付数据文件损坏");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("本地数据写入后可以读取", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "edu-deliveries-"));
     const filePath = path.join(dir, "deliveries.local.json");
@@ -355,14 +468,19 @@ describe("server store", () => {
     }
   });
 
-  it("Blob 写入使用固定 key 覆盖和合法缓存时间", async () => {
+  it("Blob 读取使用 private origin get 且写入带 etag 条件", async () => {
     const originalVercel = process.env.VERCEL;
     const originalToken = process.env.BLOB_READ_WRITE_TOKEN;
+    const get = vi.fn(async () => ({
+      statusCode: 200,
+      stream: new Response(JSON.stringify([localRecord])).body,
+      headers: new Headers(),
+      blob: { etag: "etag-1" },
+    }));
     const put = vi.fn(async () => ({ url: "", downloadUrl: "", pathname: "", contentType: "", contentDisposition: "" }));
-    const list = vi.fn();
 
     vi.resetModules();
-    vi.doMock("@vercel/blob", () => ({ list, put }));
+    vi.doMock("@vercel/blob", () => ({ get, put, BlobPreconditionFailedError: class BlobPreconditionFailedError extends Error {} }));
 
     try {
       process.env.VERCEL = "1";
@@ -371,13 +489,107 @@ describe("server store", () => {
 
       await writeServerRecords([localRecord]);
 
+      expect(get).toHaveBeenCalledWith("edu-system/deliveries.json", {
+        access: "private",
+        useCache: false,
+      });
       expect(put).toHaveBeenCalledWith("edu-system/deliveries.json", expect.stringContaining("delivery-local"), {
-        access: "public",
+        access: "private",
         allowOverwrite: true,
         addRandomSuffix: false,
         cacheControlMaxAge: 60,
         contentType: "application/json",
+        ifMatch: "etag-1",
       });
+    } finally {
+      if (originalVercel === undefined) {
+        delete process.env.VERCEL;
+      } else {
+        process.env.VERCEL = originalVercel;
+      }
+      if (originalToken === undefined) {
+        delete process.env.BLOB_READ_WRITE_TOKEN;
+      } else {
+        process.env.BLOB_READ_WRITE_TOKEN = originalToken;
+      }
+      vi.doUnmock("@vercel/blob");
+      vi.resetModules();
+    }
+  });
+
+  it("Blob get 返回 null 时回退 mock", async () => {
+    const originalVercel = process.env.VERCEL;
+    const originalToken = process.env.BLOB_READ_WRITE_TOKEN;
+    const get = vi.fn(async () => null);
+    const put = vi.fn();
+
+    vi.resetModules();
+    vi.doMock("@vercel/blob", () => ({ get, put, BlobPreconditionFailedError: class BlobPreconditionFailedError extends Error {} }));
+
+    try {
+      process.env.VERCEL = "1";
+      process.env.BLOB_READ_WRITE_TOKEN = "token";
+      const { mockDeliveries } = await import("@/lib/mock/deliveries");
+      const { readServerRecords } = await import("@/lib/data/server-store");
+
+      expect(await readServerRecords()).toEqual(mockDeliveries);
+      expect(get).toHaveBeenCalledWith("edu-system/deliveries.json", {
+        access: "private",
+        useCache: false,
+      });
+    } finally {
+      if (originalVercel === undefined) {
+        delete process.env.VERCEL;
+      } else {
+        process.env.VERCEL = originalVercel;
+      }
+      if (originalToken === undefined) {
+        delete process.env.BLOB_READ_WRITE_TOKEN;
+      } else {
+        process.env.BLOB_READ_WRITE_TOKEN = originalToken;
+      }
+      vi.doUnmock("@vercel/blob");
+      vi.resetModules();
+    }
+  });
+
+  it("Blob 条件写冲突时重读并有限重试 mutation", async () => {
+    const originalVercel = process.env.VERCEL;
+    const originalToken = process.env.BLOB_READ_WRITE_TOKEN;
+    class BlobPreconditionFailedError extends Error {}
+    const get = vi
+      .fn()
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        stream: new Response(JSON.stringify([localRecord])).body,
+        headers: new Headers(),
+        blob: { etag: "etag-1" },
+      })
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        stream: new Response(JSON.stringify([{ ...localRecord, id: "delivery-other" }])).body,
+        headers: new Headers(),
+        blob: { etag: "etag-2" },
+      });
+    const put = vi
+      .fn()
+      .mockRejectedValueOnce(new BlobPreconditionFailedError("stale"))
+      .mockResolvedValueOnce({ url: "", downloadUrl: "", pathname: "", contentType: "", contentDisposition: "" });
+
+    vi.resetModules();
+    vi.doMock("@vercel/blob", () => ({ get, put, BlobPreconditionFailedError }));
+
+    try {
+      process.env.VERCEL = "1";
+      process.env.BLOB_READ_WRITE_TOKEN = "token";
+      const { mutateServerRecords } = await import("@/lib/data/server-store");
+
+      const records = await mutateServerRecords((current) => [{ ...localRecord, id: "delivery-new" }, ...current]);
+
+      expect(records.map((record) => record.id)).toEqual(["delivery-new", "delivery-other"]);
+      expect(get).toHaveBeenCalledTimes(2);
+      expect(put).toHaveBeenNthCalledWith(1, "edu-system/deliveries.json", expect.any(String), expect.objectContaining({ ifMatch: "etag-1" }));
+      expect(put).toHaveBeenNthCalledWith(2, "edu-system/deliveries.json", expect.any(String), expect.objectContaining({ ifMatch: "etag-2" }));
     } finally {
       if (originalVercel === undefined) {
         delete process.env.VERCEL;
@@ -442,5 +654,55 @@ describe("browser provider", () => {
       "本地浏览器数据损坏，请先导出/清理后再写入",
     );
     expect(window.localStorage.getItem("edu-system.deliveries")).toBe("{bad json");
+  });
+
+  it("localStorage 持久化空数组时 list 不回灌 seed", async () => {
+    const seed: DeliveryRecord[] = [
+      {
+        id: "delivery-seed",
+        province: "广东省",
+        city: "深圳市",
+        university: "深圳大学",
+        purchaseTags: [],
+        productTags: [],
+        updatedAt: "2026-06-05T00:00:00.000Z",
+      },
+    ];
+    const { createBrowserProvider } = await import("@/lib/data/browser-provider");
+    const provider = createBrowserProvider(seed);
+
+    await provider.replaceAll([]);
+
+    expect(await provider.list()).toEqual([]);
+    expect(window.localStorage.getItem("edu-system.deliveries")).toBe("[]");
+  });
+
+  it("localStorage 元素损坏时返回 seed 且拒绝写操作", async () => {
+    const seed: DeliveryRecord[] = [
+      {
+        id: "delivery-seed",
+        province: "广东省",
+        city: "深圳市",
+        university: "深圳大学",
+        purchaseTags: [],
+        productTags: [],
+        updatedAt: "2026-06-05T00:00:00.000Z",
+      },
+    ];
+    const payload: DeliveryPayload = {
+      province: "广东省",
+      city: "深圳市",
+      university: "深圳大学",
+      purchaseTags: [],
+      productTags: [],
+    };
+
+    window.localStorage.setItem("edu-system.deliveries", "[null]");
+    const { createBrowserProvider } = await import("@/lib/data/browser-provider");
+    const provider = createBrowserProvider(seed);
+
+    expect(await provider.list()).toEqual(seed);
+    await expect(provider.create(payload)).rejects.toThrow("本地浏览器数据损坏，请先导出/清理后再写入");
+    expect(window.localStorage.getItem("edu-system.deliveries")).toBe("[null]");
   });
 });

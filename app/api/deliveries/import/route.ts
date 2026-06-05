@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
+import { requireAdminRequest } from "@/lib/api/admin-auth";
 import { parseDeliveryCsv } from "@/lib/csv/parse";
 import { replaceServerRecords } from "@/lib/data/server-store";
 
 export async function POST(request: Request) {
+  const unauthorized = requireAdminRequest(request);
+  if (unauthorized) return unauthorized;
+
   const body = await request.text();
   const result = parseDeliveryCsv(body);
   if (result.errors.length > 0) {

@@ -47,10 +47,14 @@ data/deliveries.local.json
 edu-system/deliveries.json
 ```
 
-Blob 写入使用固定路径覆盖写，并设置 JSON 内容类型。Vercel 环境缺少 `BLOB_READ_WRITE_TOKEN` 时会报配置错误，不会退回本地文件写入。
+Blob 使用 private JSON，读取会绕过 CDN 缓存并按 ETag 做乐观并发写入。Vercel 环境缺少 `BLOB_READ_WRITE_TOKEN` 时会报配置错误，不会退回本地文件写入。
+
+### 写接口保护
+
+如果配置了 `ADMIN_API_TOKEN`，写入、导入和导出接口需要携带 `Authorization: Bearer <token>` 或 `x-admin-token: <token>`。未配置该环境变量时，本地开发会继续允许直接访问。普通 `GET /api/deliveries` 保持公开，方便大屏读取。
 
 ### 静态导出模式
 
 `bun run export` 会使用浏览器本地数据模式，静态产物不包含 `/api/*`。这是设计预期：静态 HTML 部署没有服务端持久化，后续 UI 会通过 browser provider 和 `localStorage` 管理当前浏览器内的数据。
 
-导出脚本会在构建期间临时排除 `app/api`，构建结束后恢复源码目录。
+导出脚本会复制项目到临时构建目录，并只在临时目录中排除 `app/api`，不会移动或重命名源码目录。

@@ -1,30 +1,58 @@
 import { spawn } from "node:child_process";
-import { access, rename, rm } from "node:fs/promises";
+import { cp, mkdir, rm, symlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const apiDir = path.join(root, "app", "api");
-const backupDir = path.join(root, ".next-static-api-backup");
+const tempRoot = path.join(tmpdir(), `edu-system-static-${process.pid}-${Date.now()}`);
+const rootNodeModules = path.join(root, "node_modules");
+const tempNodeModules = path.join(tempRoot, "node_modules");
 
-async function pathExists(target) {
-  try {
-    await access(target);
-    return true;
-  } catch {
-    return false;
-  }
+const EXCLUDED_NAMES = new Set([
+  ".git",
+  ".next",
+  ".superpowers",
+  "data",
+  "node_modules",
+  "out",
+  "playwright-report",
+  "test-results",
+  "tsconfig.tsbuildinfo",
+]);
+
+function shouldExclude(source) {
+  const relative = path.relative(root, source);
+  if (!relative) return false;
+  const [firstSegment] = relative.split(path.sep);
+  return EXCLUDED_NAMES.has(firstSegment);
+}
+
+async function copyProjectToTemp() {
+  await mkdir(tempRoot, { recursive: true });
+  await cp(root, tempRoot, {
+    recursive: true,
+    dereference: false,
+    filter: (source) => !shouldExclude(source),
+  });
+}
+
+async function linkNodeModules() {
+  await symlink(rootNodeModules, tempNodeModules, "dir");
+}
+
+async function removeApiRoutes() {
+  await rm(path.join(tempRoot, "app", "api"), { recursive: true, force: true });
 }
 
 async function runNextBuild() {
   return new Promise((resolve) => {
-    const child = spawn("next", ["build"], {
-      cwd: root,
+    const child = spawn(path.join(rootNodeModules, ".bin", "next"), ["build"], {
+      cwd: tempRoot,
       env: {
         ...process.env,
         NEXT_PUBLIC_DATA_MODE: "browser",
         NEXT_OUTPUT_EXPORT: "true",
       },
-      shell: true,
       stdio: "inherit",
     });
 
@@ -33,23 +61,23 @@ async function runNextBuild() {
   });
 }
 
-let movedApi = false;
+async function copyOutToRoot() {
+  const tempOut = path.join(tempRoot, "out");
+  const rootOut = path.join(root, "out");
+  await rm(rootOut, { recursive: true, force: true });
+  await cp(tempOut, rootOut, { recursive: true });
+}
 
 try {
-  if (await pathExists(backupDir)) {
-    throw new Error(`${backupDir} already exists; remove it before exporting`);
-  }
-
-  if (await pathExists(apiDir)) {
-    await rename(apiDir, backupDir);
-    movedApi = true;
-  }
+  await copyProjectToTemp();
+  await linkNodeModules();
+  await removeApiRoutes();
 
   const code = await runNextBuild();
+  if (code === 0) {
+    await copyOutToRoot();
+  }
   process.exitCode = code;
 } finally {
-  if (movedApi) {
-    await rm(apiDir, { recursive: true, force: true });
-    await rename(backupDir, apiDir);
-  }
+  await rm(tempRoot, { recursive: true, force: true });
 }

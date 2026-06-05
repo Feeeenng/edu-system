@@ -1,4 +1,4 @@
-import type { DeliveryPayload } from "@/lib/types";
+import type { DeliveryPayload, DeliveryRecord } from "@/lib/types";
 
 type ValidationResult = { ok: true } | { ok: false; error: string };
 
@@ -17,6 +17,35 @@ const NUMBER_FIELDS: Array<[keyof DeliveryPayload, string]> = [
   ["longitude", "经度"],
   ["latitude", "纬度"],
   ["resourceAmount", "资源数量"],
+];
+
+const RECORD_REQUIRED_TEXT_FIELDS: Array<[keyof DeliveryRecord, string]> = [
+  ["id", "记录 ID"],
+  ["updatedAt", "更新时间"],
+  ["province", "省份"],
+  ["city", "地区/城市"],
+  ["university", "高校名称"],
+];
+
+const RECORD_TAG_FIELDS: Array<[keyof DeliveryRecord, string]> = [
+  ["purchaseTags", "采购标签"],
+  ["productTags", "产品标签"],
+];
+
+const RECORD_NUMBER_FIELDS: Array<[keyof DeliveryRecord, string]> = [
+  ["longitude", "经度"],
+  ["latitude", "纬度"],
+  ["resourceAmount", "资源数量"],
+];
+
+const RECORD_OPTIONAL_TEXT_FIELDS: Array<[keyof DeliveryRecord, string]> = [
+  ["customerStatus", "客户状态"],
+  ["deliveryDate", "交付日期"],
+  ["owner", "负责人"],
+  ["resourceType", "资源类型"],
+  ["resourceUnit", "资源单位"],
+  ["deliveryContent", "交付内容"],
+  ["notes", "备注"],
 ];
 
 const COVERAGE_STATUSES = ["已覆盖", "跟进中", "未覆盖", "暂停"] as const;
@@ -107,6 +136,54 @@ export function validateDeliveryPayloadArray(payloads: unknown): ValidationResul
     if (!result.ok) {
       return { ok: false, error: `第 ${index + 1} 条记录${result.error}` };
     }
+  }
+
+  return { ok: true };
+}
+
+export function validateDeliveryRecordShape(value: unknown): ValidationResult {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { ok: false, error: "交付记录必须是对象" };
+  }
+
+  const record = value as Partial<DeliveryRecord>;
+  const missing = RECORD_REQUIRED_TEXT_FIELDS.filter(([key]) => !hasText(record[key])).map(([, label]) => label);
+  if (missing.length > 0) {
+    return { ok: false, error: `缺少必填字段：${missing.join("、")}` };
+  }
+
+  for (const [key, label] of RECORD_TAG_FIELDS) {
+    if (!validateStringArray(record[key])) {
+      return { ok: false, error: `${label}必须是字符串数组` };
+    }
+  }
+
+  for (const [key, label] of RECORD_NUMBER_FIELDS) {
+    const fieldValue = record[key];
+    if (fieldValue !== undefined && (typeof fieldValue !== "number" || !Number.isFinite(fieldValue))) {
+      return { ok: false, error: `${label}必须是有效数字` };
+    }
+  }
+
+  for (const [key, label] of RECORD_OPTIONAL_TEXT_FIELDS) {
+    const fieldValue = record[key];
+    if (fieldValue !== undefined && typeof fieldValue !== "string") {
+      return { ok: false, error: `${label}必须是字符串` };
+    }
+  }
+
+  if (record.coverageStatus !== undefined) {
+    const result = validateEnum(record.coverageStatus, "覆盖状态", COVERAGE_STATUSES);
+    if (!result.ok) return result;
+  }
+
+  if (record.projectStage !== undefined) {
+    const result = validateEnum(record.projectStage, "项目阶段", PROJECT_STAGES);
+    if (!result.ok) return result;
+  }
+
+  if (record.extraJson !== undefined && !isPlainRecord(record.extraJson)) {
+    return { ok: false, error: "扩展字段JSON必须是普通对象" };
   }
 
   return { ok: true };

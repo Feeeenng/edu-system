@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { requireAdminRequest } from "@/lib/api/admin-auth";
 import { createDeliveryRecord } from "@/lib/data/normalize";
-import { readServerRecords, replaceServerRecords, writeServerRecords } from "@/lib/data/server-store";
+import { mutateServerRecords, readServerRecords } from "@/lib/data/server-store";
 import { validateDeliveryPayload, validateDeliveryPayloadArray } from "@/lib/data/validation";
 import type { DeliveryPayload } from "@/lib/types";
 
@@ -16,12 +17,28 @@ function jsonError(error: string, status: number) {
   return NextResponse.json({ error }, { status });
 }
 
+class RouteStatusError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
+function statusError(error: string, status: number) {
+  return new RouteStatusError(error, status);
+}
+
 export async function GET() {
   const records = await readServerRecords();
   return NextResponse.json({ records }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: Request) {
+  const unauthorized = requireAdminRequest(request);
+  if (unauthorized) return unauthorized;
+
   const body = await readJsonBody(request);
   if (!body.ok) return body.response;
 
@@ -29,13 +46,15 @@ export async function POST(request: Request) {
   if (!validation.ok) return jsonError(validation.error, 400);
 
   const payload = body.data as DeliveryPayload;
-  const records = await readServerRecords();
   const record = createDeliveryRecord(payload);
-  await writeServerRecords([record, ...records]);
+  await mutateServerRecords((records) => [record, ...records]);
   return NextResponse.json({ record }, { status: 201 });
 }
 
 export async function PUT(request: Request) {
+  const unauthorized = requireAdminRequest(request);
+  if (unauthorized) return unauthorized;
+
   const body = await readJsonBody(request);
   if (!body.ok) return body.response;
 
@@ -47,17 +66,27 @@ export async function PUT(request: Request) {
     return jsonError("缺少记录 ID", 400);
   }
 
-  const records = await readServerRecords();
-  if (!records.some((record) => record.id === payload.id)) {
-    return jsonError("记录不存在", 404);
+  const updated = createDeliveryRecord({ ...payload, updatedAt: new Date().toISOString() });
+  try {
+    await mutateServerRecords((records) => {
+      if (!records.some((record) => record.id === payload.id)) {
+        throw statusError("记录不存在", 404);
+      }
+
+      return records.map((record) => (record.id === payload.id ? updated : record));
+    });
+  } catch (error) {
+    if (error instanceof RouteStatusError) return jsonError(error.message, error.status);
+    throw error;
   }
 
-  const updated = createDeliveryRecord({ ...payload, updatedAt: new Date().toISOString() });
-  await writeServerRecords(records.map((record) => (record.id === payload.id ? updated : record)));
   return NextResponse.json({ record: updated });
 }
 
 export async function DELETE(request: Request) {
+  const unauthorized = requireAdminRequest(request);
+  if (unauthorized) return unauthorized;
+
   const body = await readJsonBody(request);
   if (!body.ok) return body.response;
 
@@ -74,16 +103,26 @@ export async function DELETE(request: Request) {
     return jsonError("记录 ID 必须是字符串", 400);
   }
 
-  const records = await readServerRecords();
-  if (!records.some((record) => record.id === id)) {
-    return jsonError("记录不存在", 404);
+  try {
+    await mutateServerRecords((records) => {
+      if (!records.some((record) => record.id === id)) {
+        throw statusError("记录不存在", 404);
+      }
+
+      return records.filter((record) => record.id !== id);
+    });
+  } catch (error) {
+    if (error instanceof RouteStatusError) return jsonError(error.message, error.status);
+    throw error;
   }
 
-  await writeServerRecords(records.filter((record) => record.id !== id));
   return NextResponse.json({ ok: true });
 }
 
 export async function PATCH(request: Request) {
+  const unauthorized = requireAdminRequest(request);
+  if (unauthorized) return unauthorized;
+
   const body = await readJsonBody(request);
   if (!body.ok) return body.response;
 
@@ -91,6 +130,6 @@ export async function PATCH(request: Request) {
   if (!validation.ok) return jsonError(validation.error, 400);
 
   const payloads = body.data as DeliveryPayload[];
-  const records = await replaceServerRecords(payloads);
+  const records = await mutateServerRecords(() => payloads.map(createDeliveryRecord));
   return NextResponse.json({ records });
 }
