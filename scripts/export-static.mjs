@@ -2,13 +2,9 @@ import { spawn } from "node:child_process";
 import { cp, mkdir, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
-const root = process.cwd();
-const tempRoot = path.join(tmpdir(), `edu-system-static-${process.pid}-${Date.now()}`);
-const rootNodeModules = path.join(root, "node_modules");
-const tempNodeModules = path.join(tempRoot, "node_modules");
-
-const EXCLUDED_NAMES = new Set([
+const TOP_LEVEL_EXCLUDED_NAMES = new Set([
   ".git",
   ".next",
   ".superpowers",
@@ -20,31 +16,32 @@ const EXCLUDED_NAMES = new Set([
   "tsconfig.tsbuildinfo",
 ]);
 
-function shouldExclude(source) {
-  const relative = path.relative(root, source);
+export function shouldExcludeFromStaticExport(source, projectRoot) {
+  const relative = path.relative(projectRoot, source);
   if (!relative) return false;
   const segments = relative.split(path.sep);
-  return segments.some((segment) => EXCLUDED_NAMES.has(segment) || segment.startsWith(".env"));
+  const [firstSegment] = segments;
+  return TOP_LEVEL_EXCLUDED_NAMES.has(firstSegment) || segments.some((segment) => segment.startsWith(".env"));
 }
 
-async function copyProjectToTemp() {
+async function copyProjectToTemp(root, tempRoot) {
   await mkdir(tempRoot, { recursive: true });
   await cp(root, tempRoot, {
     recursive: true,
     dereference: false,
-    filter: (source) => !shouldExclude(source),
+    filter: (source) => !shouldExcludeFromStaticExport(source, root),
   });
 }
 
-async function linkNodeModules() {
+async function linkNodeModules(rootNodeModules, tempNodeModules) {
   await symlink(rootNodeModules, tempNodeModules, "dir");
 }
 
-async function removeApiRoutes() {
+async function removeApiRoutes(tempRoot) {
   await rm(path.join(tempRoot, "app", "api"), { recursive: true, force: true });
 }
 
-async function runNextBuild() {
+async function runNextBuild(rootNodeModules, tempRoot) {
   return new Promise((resolve) => {
     const child = spawn(path.join(rootNodeModules, ".bin", "next"), ["build"], {
       cwd: tempRoot,
@@ -61,23 +58,34 @@ async function runNextBuild() {
   });
 }
 
-async function copyOutToRoot() {
+async function copyOutToRoot(root, tempRoot) {
   const tempOut = path.join(tempRoot, "out");
   const rootOut = path.join(root, "out");
   await rm(rootOut, { recursive: true, force: true });
   await cp(tempOut, rootOut, { recursive: true });
 }
 
-try {
-  await copyProjectToTemp();
-  await linkNodeModules();
-  await removeApiRoutes();
+export async function runStaticExport(root = process.cwd()) {
+  const tempRoot = path.join(tmpdir(), `edu-system-static-${process.pid}-${Date.now()}`);
+  const rootNodeModules = path.join(root, "node_modules");
+  const tempNodeModules = path.join(tempRoot, "node_modules");
 
-  const code = await runNextBuild();
-  if (code === 0) {
-    await copyOutToRoot();
+  try {
+    await copyProjectToTemp(root, tempRoot);
+    await linkNodeModules(rootNodeModules, tempNodeModules);
+    await removeApiRoutes(tempRoot);
+
+    const code = await runNextBuild(rootNodeModules, tempRoot);
+    if (code === 0) {
+      await copyOutToRoot(root, tempRoot);
+    }
+
+    return code;
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
   }
-  process.exitCode = code;
-} finally {
-  await rm(tempRoot, { recursive: true, force: true });
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  process.exitCode = await runStaticExport();
 }
