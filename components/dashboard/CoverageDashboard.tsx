@@ -14,6 +14,7 @@ import type { DeliveryRecord, RegionMetric, UniversityDetail } from "@/lib/types
 import "./coverage-dashboard.css";
 
 const PRODUCT_ORDER = ["SDDC", "EDS", "桌面云", "FastGPT"];
+const PURCHASE_ORDER = ["VMware替换", "信创", "AI超融合"];
 
 type CoverageDashboardProps = {
   initialRecords?: DeliveryRecord[];
@@ -42,6 +43,14 @@ function prefersReducedMotion() {
 
 function getMetricMap(metrics: RegionMetric[]) {
   return new Map(metrics.map((metric) => [metric.name, metric]));
+}
+
+function formatCoverageFraction(covered: number, total?: number) {
+  return total ? `${covered} / ${total}` : `${covered} / -`;
+}
+
+function formatPercent(value?: number) {
+  return value !== undefined ? `${Math.round(value * 1000) / 10}%` : "-";
 }
 
 function getUniversityCards(records: DeliveryRecord[]) {
@@ -80,8 +89,11 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     records,
     filteredRecords,
     productOptions,
+    purchaseOptions,
     selectedProductTags,
     setSelectedProductTags,
+    selectedPurchaseTags,
+    setSelectedPurchaseTags,
     keyword,
     setKeyword,
     summary,
@@ -96,9 +108,14 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     const rest = productOptions.filter((product) => !known.includes(product));
     return [...known, ...rest];
   }, [productOptions]);
+  const orderedPurchases = useMemo(() => {
+    const known = PURCHASE_ORDER.filter((tag) => purchaseOptions.includes(tag));
+    const rest = purchaseOptions.filter((tag) => !known.includes(tag));
+    return [...known, ...rest];
+  }, [purchaseOptions]);
 
   const metricMap = useMemo(() => getMetricMap(provinceMetrics), [provinceMetrics]);
-  const productLabel = selectedProductTags[0] ?? "全部产品";
+  const activeScopeLabel = selectedPurchaseTags[0] ?? selectedProductTags[0] ?? "全部";
   const viewRecords = useMemo(
     () =>
       selectedProvince
@@ -109,8 +126,8 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     [filteredRecords, selectedCity, selectedProvince],
   );
   const cityMetrics = useMemo(
-    () => (selectedProvince ? groupByCity(filteredRecords, selectedProvince) : []),
-    [filteredRecords, selectedProvince],
+    () => (selectedProvince ? groupByCity(filteredRecords, selectedProvince, records) : []),
+    [filteredRecords, records, selectedProvince],
   );
   const cityMetricMap = useMemo(() => getMetricMap(cityMetrics), [cityMetrics]);
   const mapMetrics = selectedProvince ? cityMetrics : provinceMetrics;
@@ -122,7 +139,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     ? selectedCity
       ? `${selectedProvince} / ${selectedCity}覆盖详情`
       : `${selectedProvince}覆盖详情`
-    : `${productLabel} 全国案例覆盖`;
+    : `${activeScopeLabel} 全国案例覆盖`;
 
   useEffect(() => {
     if (!shellRef.current || prefersReducedMotion()) return;
@@ -152,7 +169,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
       );
     }, caseScopeRef);
     return () => context.revert();
-  }, [selectedCity, selectedProvince, selectedProductTags, keyword, universityCards.length]);
+  }, [selectedCity, selectedProvince, selectedProductTags, selectedPurchaseTags, keyword, universityCards.length]);
 
   const openProvince = useCallback((province: string) => {
     setSelectedProvince(province);
@@ -169,6 +186,14 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
         ? selectedProductTags.filter((item) => item !== product)
         : [product],
     );
+    setSelectedPurchaseTags([]);
+    setSelectedProvince(undefined);
+    setSelectedCity(undefined);
+  };
+
+  const togglePurchase = (tag: string) => {
+    setSelectedPurchaseTags(selectedPurchaseTags.includes(tag) ? [] : [tag]);
+    setSelectedProductTags([]);
     setSelectedProvince(undefined);
     setSelectedCity(undefined);
   };
@@ -247,21 +272,42 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
       {importMessage && <p className="import-message">{importMessage}</p>}
 
       <section className="product-dock" aria-label="产品筛选" data-hero-motion>
-        {orderedProducts.map((product) => {
-          const active = selectedProductTags.includes(product);
-          return (
-            <button
-              className={active ? "product-tab is-active" : "product-tab"}
-              key={product}
-              type="button"
-              aria-pressed={active}
-              onClick={() => toggleProduct(product)}
-            >
-              <Boxes size={16} aria-hidden="true" />
-              <span>{product}</span>
-            </button>
-          );
-        })}
+        <div className="tag-filter-group">
+          <span>产品</span>
+          {orderedProducts.map((product) => {
+            const active = selectedProductTags.includes(product);
+            return (
+              <button
+                className={active ? "product-tab is-active" : "product-tab"}
+                key={product}
+                type="button"
+                aria-pressed={active}
+                onClick={() => toggleProduct(product)}
+              >
+                <Boxes size={16} aria-hidden="true" />
+                <span>{product}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="tag-filter-group">
+          <span>采购</span>
+          {orderedPurchases.map((tag) => {
+            const active = selectedPurchaseTags.includes(tag);
+            return (
+              <button
+                className={active ? "product-tab is-active is-purchase" : "product-tab is-purchase"}
+                key={tag}
+                type="button"
+                aria-pressed={active}
+                onClick={() => togglePurchase(tag)}
+              >
+                <ServerCog size={16} aria-hidden="true" />
+                <span>{tag}</span>
+              </button>
+            );
+          })}
+        </div>
       </section>
 
       <section className="metric-ribbon" aria-label="覆盖摘要" data-hero-motion>
@@ -272,8 +318,8 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
         </article>
         <article>
           <GraduationCap size={18} aria-hidden="true" />
-          <span>覆盖高校</span>
-          <strong>{summary.universityCount}</strong>
+          <span>高校覆盖</span>
+          <strong>{formatCoverageFraction(summary.universityCount, summary.totalUniversityCount)}</strong>
         </article>
         <article>
           <Database size={18} aria-hidden="true" />
@@ -282,8 +328,8 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
         </article>
         <article>
           <ServerCog size={18} aria-hidden="true" />
-          <span>当前视图高校</span>
-          <strong>{universityCards.length}</strong>
+          <span>覆盖率</span>
+          <strong>{formatPercent(summary.coverageRate)}</strong>
         </article>
       </section>
 
@@ -325,8 +371,12 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
                 <span>{selectedCity ? "当前城市" : "当前省份"}</span>
                 <strong>{selectedCity ?? selectedProvince}</strong>
                 <p>
-                  {(selectedCity ? selectedCityMetric?.universityCount : selectedMetric?.universityCount) ?? 0} 所高校
-                  / {(selectedCity ? selectedCityMetric?.deliveryCount : selectedMetric?.deliveryCount) ?? 0} 个案例
+                  {formatCoverageFraction(
+                    (selectedCity ? selectedCityMetric?.universityCount : selectedMetric?.universityCount) ?? 0,
+                    selectedCity ? selectedCityMetric?.totalUniversityCount : selectedMetric?.totalUniversityCount,
+                  )}
+                  <br />
+                  覆盖率 {formatPercent(selectedCity ? selectedCityMetric?.coverageRate : selectedMetric?.coverageRate)}
                 </p>
               </div>
             )}
@@ -351,7 +401,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
                     onClick={() => openCity(city.name)}
                   >
                     {city.name}
-                    <small>{city.universityCount} 所</small>
+                    <small>{formatCoverageFraction(city.universityCount, city.totalUniversityCount)}</small>
                   </button>
                 ))
               ) : (

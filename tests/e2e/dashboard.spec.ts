@@ -56,9 +56,11 @@ test("admin data entry creates a server delivery record", async ({ page }) => {
   await expect(newRow.locator("select").nth(1)).toBeEnabled();
   await newRow.locator("select").nth(1).selectOption("深圳市");
   await newRow.locator("input").nth(0).fill("测试录入大学");
-  await newRow.locator("input").nth(1).fill("SDDC;EDS");
-  await newRow.locator("input").nth(3).fill("超融合节点x3;EDS存储节点x2");
-  await newRow.locator("input").nth(4).fill("VMware替换压力大;科研数据增长快");
+  await newRow.locator("input").nth(1).fill("160");
+  await newRow.locator("input").nth(2).fill("18");
+  await newRow.locator("input").nth(3).fill("SDDC;EDS");
+  await newRow.locator("input").nth(5).fill("超融合节点x3;EDS存储节点x2");
+  await newRow.locator("input").nth(6).fill("VMware替换压力大;科研数据增长快");
   await newRow.getByRole("button", { name: "新增" }).click();
 
   const table = page.getByRole("table");

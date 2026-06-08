@@ -108,6 +108,8 @@ export function normalizeDeliveryPayload(payload: DeliveryPayload): DeliveryPayl
     owner: cleanOptionalText(payload.owner),
     purchaseTags: cleanTags(payload.purchaseTags),
     productTags: cleanTags(payload.productTags),
+    provinceUniversityTotal: cleanNumber(payload.provinceUniversityTotal),
+    cityUniversityTotal: cleanNumber(payload.cityUniversityTotal),
     resourceType: cleanOptionalText(payload.resourceType),
     resourceAmount: cleanNumber(payload.resourceAmount),
     resourceUnit: cleanOptionalText(payload.resourceUnit),

@@ -97,13 +97,27 @@ function getMaxDeliveryCount(metrics: RegionMetric[]) {
   return Math.max(1, ...metrics.map((metric) => metric.deliveryCount));
 }
 
+function getMetricValue(metric: RegionMetric) {
+  return metric.coverageRate !== undefined ? Math.round(metric.coverageRate * 1000) / 10 : metric.deliveryCount;
+}
+
+function formatCoverage(metric: RegionMetric) {
+  if (!metric.totalUniversityCount) return `${metric.universityCount} / -`;
+  return `${metric.universityCount} / ${metric.totalUniversityCount}`;
+}
+
+function formatCoverageRate(metric: RegionMetric) {
+  return metric.coverageRate !== undefined ? `${Math.round(metric.coverageRate * 1000) / 10}%` : "-";
+}
+
 function getTooltipName(params: TooltipComponentFormatterCallbackParams) {
   const item: DefaultLabelFormatterCallbackParams | undefined = Array.isArray(params) ? params[0] : params;
   return typeof item?.name === "string" ? item.name : "";
 }
 
 function buildMapOption(metrics: RegionMetric[], mapName: string, selectedRegion?: string): EChartsOption {
-  const maxDeliveryCount = getMaxDeliveryCount(metrics);
+  const hasRate = metrics.some((metric) => metric.coverageRate !== undefined);
+  const maxDeliveryCount = hasRate ? 100 : getMaxDeliveryCount(metrics);
   return {
     backgroundColor: "transparent",
     animation: true,
@@ -120,16 +134,21 @@ function buildMapOption(metrics: RegionMetric[], mapName: string, selectedRegion
         const name = getTooltipName(params);
         const metric = metrics.find((item) => item.name === name);
         if (!metric) return `${name}<br/>暂无案例`;
-        return `${metric.name}<br/>覆盖高校：${metric.universityCount}<br/>交付案例：${metric.deliveryCount}`;
+        return [
+          metric.name,
+          `覆盖高校：${formatCoverage(metric)}`,
+          `覆盖率：${formatCoverageRate(metric)}`,
+          `交付案例：${metric.deliveryCount}`,
+        ].join("<br/>");
       },
     },
     visualMap: {
       show: true,
       min: 0,
       max: maxDeliveryCount,
-      left: 18,
-      bottom: 22,
-      text: ["高", "低"],
+      left: 20,
+      bottom: 20,
+      text: hasRate ? ["100%", "0%"] : ["高", "低"],
       itemWidth: 10,
       itemHeight: 70,
       textStyle: { color: "#475569", fontSize: 11 },
@@ -138,11 +157,11 @@ function buildMapOption(metrics: RegionMetric[], mapName: string, selectedRegion
     geo: {
       map: mapName,
       roam: false,
-      zoom: mapName === MAP_NAME ? 0.98 : 0.92,
-      top: mapName === MAP_NAME ? 18 : 34,
-      bottom: mapName === MAP_NAME ? 54 : 48,
-      left: mapName === MAP_NAME ? 28 : 42,
-      right: mapName === MAP_NAME ? 28 : 42,
+      zoom: mapName === MAP_NAME ? 1.14 : 1.04,
+      top: mapName === MAP_NAME ? 4 : 18,
+      bottom: mapName === MAP_NAME ? 28 : 34,
+      left: mapName === MAP_NAME ? 8 : 22,
+      right: mapName === MAP_NAME ? 8 : 22,
       label: {
         show: true,
         color: "#334155",
@@ -184,8 +203,10 @@ function buildMapOption(metrics: RegionMetric[], mapName: string, selectedRegion
         animationDelayUpdate: (index) => index * 8,
         data: metrics.map((metric) => ({
           name: metric.name,
-          value: metric.deliveryCount,
+          value: getMetricValue(metric),
           universityCount: metric.universityCount,
+          totalUniversityCount: metric.totalUniversityCount,
+          coverageRate: metric.coverageRate,
         })),
       },
     ],

@@ -205,7 +205,7 @@
 
 .entry-table {
   width: 100%;
-  min-width: 1380px;
+  min-width: 1660px;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 13px;
@@ -250,6 +250,10 @@
 
 .entry-table tbody tr:hover {
   background: #f0f9ff;
+}
+
+.entry-table tbody tr.is-editing-row {
+  background: #fff7ed;
 }
 
 .entry-new-row td {
@@ -321,12 +325,17 @@
   width: 190px;
 }
 
+.col-total {
+  width: 124px;
+}
+
 .col-action {
-  width: 110px;
+  width: 138px;
 }
 
 .table-primary-action,
-.table-danger-action {
+.table-danger-action,
+.table-plain-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -359,6 +368,17 @@
 .table-danger-action:hover {
   border-color: #f87171;
   background: #fee2e2;
+}
+
+.table-plain-action {
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.row-actions {
+  display: grid;
+  gap: 6px;
 }
 
 .empty-row td {

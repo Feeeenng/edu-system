@@ -18,10 +18,17 @@ function getProductOptions(records: DeliveryRecord[]) {
   );
 }
 
+function getPurchaseOptions(records: DeliveryRecord[]) {
+  return Array.from(new Set(records.flatMap((record) => record.purchaseTags).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b, "zh-CN"),
+  );
+}
+
 export function useCoverageData(options: UseCoverageDataOptions = {}) {
   const initialRecords = options.initialRecords ?? EMPTY_RECORDS;
   const [records, setRecords] = useState<DeliveryRecord[]>(initialRecords);
   const [selectedProductTags, setSelectedProductTags] = useState<string[]>([]);
+  const [selectedPurchaseTags, setSelectedPurchaseTags] = useState<string[]>([]);
   const [keyword, setKeyword] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
@@ -48,22 +55,27 @@ export function useCoverageData(options: UseCoverageDataOptions = {}) {
   const filters: DeliveryFilters = useMemo(
     () => ({
       productTags: selectedProductTags,
+      purchaseTags: selectedPurchaseTags,
       keyword,
     }),
-    [keyword, selectedProductTags],
+    [keyword, selectedProductTags, selectedPurchaseTags],
   );
 
   const filteredRecords = useMemo(() => filterDeliveries(records, filters), [filters, records]);
   const productOptions = useMemo(() => getProductOptions(records), [records]);
-  const summary = useMemo(() => buildCoverageSummary(filteredRecords), [filteredRecords]);
-  const provinceMetrics = useMemo(() => groupByProvince(filteredRecords), [filteredRecords]);
+  const purchaseOptions = useMemo(() => getPurchaseOptions(records), [records]);
+  const summary = useMemo(() => buildCoverageSummary(filteredRecords, records), [filteredRecords, records]);
+  const provinceMetrics = useMemo(() => groupByProvince(filteredRecords, records), [filteredRecords, records]);
 
   return {
     records,
     filteredRecords,
     productOptions,
+    purchaseOptions,
     selectedProductTags,
     setSelectedProductTags,
+    selectedPurchaseTags,
+    setSelectedPurchaseTags,
     keyword,
     setKeyword,
     filters,

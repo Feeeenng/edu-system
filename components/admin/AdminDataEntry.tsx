@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Download, FileDown, FileUp, Plus, Search, Trash2, X } from "lucide-react";
+import { ArrowLeft, Download, FileDown, FileUp, Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildCsvTemplate, exportDeliveriesToCsv } from "@/lib/csv/export";
 import { parseDeliveryCsv } from "@/lib/csv/parse";
@@ -15,6 +15,8 @@ type EntryFormState = {
   province: string;
   city: string;
   university: string;
+  provinceUniversityTotal: string;
+  cityUniversityTotal: string;
   productTags: string;
   purchaseTags: string;
   equipmentDetails: string;
@@ -35,6 +37,8 @@ const EMPTY_ENTRY_FORM: EntryFormState = {
   province: "",
   city: "",
   university: "",
+  provinceUniversityTotal: "",
+  cityUniversityTotal: "",
   productTags: "",
   purchaseTags: "",
   equipmentDetails: "",
@@ -58,6 +62,49 @@ function splitList(value: string) {
 
 function joinList(items?: string[]) {
   return (items ?? []).join(" / ");
+}
+
+function formatOptionalNumber(value?: number) {
+  return value === undefined ? "" : String(value);
+}
+
+function parseOptionalNumber(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function hasInvalidNumber(value: string) {
+  const trimmed = value.trim();
+  return trimmed.length > 0 && !Number.isFinite(Number(trimmed));
+}
+
+function validateForm(form: EntryFormState) {
+  if (!form.province.trim() || !form.city.trim() || !form.university.trim()) {
+    return "省份、城市、高校名称为必填项。";
+  }
+
+  if (hasInvalidNumber(form.provinceUniversityTotal) || hasInvalidNumber(form.cityUniversityTotal)) {
+    return "省份高校总数和城市高校总数必须填写数字。";
+  }
+
+  return undefined;
+}
+
+function buildFormFromRecord(record: DeliveryRecord): EntryFormState {
+  return {
+    province: record.province,
+    city: record.city,
+    university: record.university,
+    provinceUniversityTotal: formatOptionalNumber(record.provinceUniversityTotal),
+    cityUniversityTotal: formatOptionalNumber(record.cityUniversityTotal),
+    productTags: joinList(record.productTags),
+    purchaseTags: joinList(record.purchaseTags),
+    equipmentDetails: joinList(record.equipmentDetails),
+    painPoints: joinList(record.painPoints),
+    deliveryContent: record.deliveryContent ?? "",
+  };
 }
 
 function normalizeSearchText(value: string) {
@@ -87,11 +134,14 @@ function recordMatchesFilters(record: DeliveryRecord, filters: FilterState) {
     .includes(keyword);
 }
 
-function buildPayload(form: EntryFormState): DeliveryPayload {
+function buildPayload(form: EntryFormState, base?: DeliveryRecord): DeliveryPayload {
   return {
+    ...base,
     province: form.province.trim(),
     city: form.city.trim(),
     university: form.university.trim(),
+    provinceUniversityTotal: parseOptionalNumber(form.provinceUniversityTotal),
+    cityUniversityTotal: parseOptionalNumber(form.cityUniversityTotal),
     productTags: splitList(form.productTags),
     purchaseTags: splitList(form.purchaseTags),
     equipmentDetails: splitList(form.equipmentDetails),
@@ -121,6 +171,9 @@ function downloadCsvTemplate() {
 export function AdminDataEntry() {
   const [records, setRecords] = useState<DeliveryRecord[]>([]);
   const [entryForm, setEntryForm] = useState<EntryFormState>(EMPTY_ENTRY_FORM);
+  const [editingForms, setEditingForms] = useState<Record<string, EntryFormState>>({});
+  const [editingCityOptions, setEditingCityOptions] = useState<Record<string, string[]>>({});
+  const [savingId, setSavingId] = useState<string>();
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [cityOptions, setCityOptions] = useState<string[]>([]);
@@ -209,6 +262,21 @@ export function AdminDataEntry() {
     };
   };
 
+  const updateEditingField = (id: string, field: EntryField, value: string) => {
+    setEditingForms((current) => {
+      const form = current[id];
+      if (!form) return current;
+      return {
+        ...current,
+        [id]: {
+          ...form,
+          [field]: value,
+          ...(field === "province" ? { city: "" } : {}),
+        },
+      };
+    });
+  };
+
   const updateFilter = (field: keyof FilterState) => {
     return (value: string) => {
       setFilters((current) => ({
@@ -252,8 +320,9 @@ export function AdminDataEntry() {
   };
 
   const createRecord = async () => {
-    if (!entryForm.province.trim() || !entryForm.city.trim() || !entryForm.university.trim()) {
-      setMessage("省份、城市、高校名称为必填项。");
+    const validationMessage = validateForm(entryForm);
+    if (validationMessage) {
+      setMessage(validationMessage);
       return;
     }
 
@@ -265,6 +334,69 @@ export function AdminDataEntry() {
       setMessage(`已新增：${record.university}，首页刷新后可查看。`);
     } catch (createError) {
       setMessage(createError instanceof Error ? createError.message : "新增记录失败");
+    }
+  };
+
+  const startEditRecord = async (record: DeliveryRecord) => {
+    setEditingForms((current) => ({
+      ...current,
+      [record.id]: buildFormFromRecord(record),
+    }));
+
+    try {
+      const cities = await getCityOptions(record.province);
+      setEditingCityOptions((current) => ({ ...current, [record.id]: cities }));
+    } catch {
+      setEditingCityOptions((current) => ({ ...current, [record.id]: [] }));
+      setMessage("城市列表读取失败，仍可编辑其他字段。");
+    }
+  };
+
+  const cancelEditRecord = (id: string) => {
+    setEditingForms((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+    setEditingCityOptions((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const updateEditingProvince = async (id: string, province: string) => {
+    updateEditingField(id, "province", province);
+    setEditingCityOptions((current) => ({ ...current, [id]: [] }));
+    if (!province) return;
+
+    try {
+      const cities = await getCityOptions(province);
+      setEditingCityOptions((current) => ({ ...current, [id]: cities }));
+    } catch {
+      setMessage("城市列表读取失败，请重新选择省份。");
+    }
+  };
+
+  const saveRecord = async (record: DeliveryRecord) => {
+    const form = editingForms[record.id];
+    if (!form) return;
+    const validationMessage = validateForm(form);
+    if (validationMessage) {
+      setMessage(validationMessage);
+      return;
+    }
+
+    try {
+      setSavingId(record.id);
+      const updated = await getProvider().update(record.id, buildPayload(form, record));
+      setRecords(await getProvider().list());
+      cancelEditRecord(record.id);
+      setMessage(`已更新：${updated.university}。`);
+    } catch (saveError) {
+      setMessage(saveError instanceof Error ? saveError.message : "保存记录失败");
+    } finally {
+      setSavingId(undefined);
     }
   };
 
@@ -463,6 +595,8 @@ export function AdminDataEntry() {
                 <th className="col-province">省份</th>
                 <th className="col-city">城市</th>
                 <th className="col-university">高校名称</th>
+                <th className="col-total">省份高校总数</th>
+                <th className="col-total">城市高校总数</th>
                 <th>产品标签</th>
                 <th>采购标签</th>
                 <th>设备明细</th>
@@ -503,6 +637,22 @@ export function AdminDataEntry() {
                     value={entryForm.university}
                     placeholder="高校名称"
                     onChange={(event) => updateField("university")(event.target.value)}
+                  />
+                </td>
+                <td>
+                  <input
+                    value={entryForm.provinceUniversityTotal}
+                    inputMode="numeric"
+                    placeholder="如 160"
+                    onChange={(event) => updateField("provinceUniversityTotal")(event.target.value)}
+                  />
+                </td>
+                <td>
+                  <input
+                    value={entryForm.cityUniversityTotal}
+                    inputMode="numeric"
+                    placeholder="如 18"
+                    onChange={(event) => updateField("cityUniversityTotal")(event.target.value)}
                   />
                 </td>
                 <td>
@@ -550,46 +700,164 @@ export function AdminDataEntry() {
 
               {records.length === 0 ? (
                 <tr className="empty-row">
-                  <td colSpan={10}>暂无交付记录，可通过上方表格新增或下载模板后批量导入 CSV。</td>
+                  <td colSpan={12}>暂无交付记录，可通过上方表格新增或下载模板后批量导入 CSV。</td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr className="empty-row">
-                  <td colSpan={10}>没有匹配当前筛选条件的交付记录。</td>
+                  <td colSpan={12}>没有匹配当前筛选条件的交付记录。</td>
                 </tr>
               ) : (
-                filteredRecords.map((record) => (
-                  <tr key={record.id}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        aria-label={`选择${record.university}`}
-                        checked={selectedIds.has(record.id)}
-                        onChange={() => toggleRecordSelection(record.id)}
-                      />
-                    </td>
-                    <td>{record.province}</td>
-                    <td>{record.city}</td>
-                    <td>
-                      <strong>{record.university}</strong>
-                    </td>
-                    <td>{joinList(record.productTags)}</td>
-                    <td>{joinList(record.purchaseTags)}</td>
-                    <td>{joinList(record.equipmentDetails)}</td>
-                    <td>{joinList(record.painPoints)}</td>
-                    <td>{record.deliveryContent || "-"}</td>
-                    <td>
-                      <button
-                        className="table-danger-action"
-                        type="button"
-                        aria-label={`删除${record.university}`}
-                        onClick={() => void deleteRecord(record)}
-                      >
-                        <Trash2 size={15} aria-hidden="true" />
-                        删除
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                filteredRecords.map((record) => {
+                  const editingForm = editingForms[record.id];
+                  const editingCities = editingCityOptions[record.id] ?? [];
+                  return (
+                    <tr className={editingForm ? "is-editing-row" : undefined} key={record.id}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          aria-label={`选择${record.university}`}
+                          checked={selectedIds.has(record.id)}
+                          disabled={Boolean(editingForm)}
+                          onChange={() => toggleRecordSelection(record.id)}
+                        />
+                      </td>
+                      {editingForm ? (
+                        <>
+                          <td>
+                            <select
+                              value={editingForm.province}
+                              onChange={(event) => void updateEditingProvince(record.id, event.target.value)}
+                            >
+                              <option value="">选择省份</option>
+                              {provinceOptions.map((province) => (
+                                <option key={province} value={province}>
+                                  {province}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
+                            <select
+                              value={editingForm.city}
+                              disabled={!editingForm.province}
+                              onChange={(event) => updateEditingField(record.id, "city", event.target.value)}
+                            >
+                              <option value="">{editingForm.province ? "选择城市" : "先选省份"}</option>
+                              {editingCities.map((city) => (
+                                <option key={city} value={city}>
+                                  {city}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
+                            <input
+                              value={editingForm.university}
+                              onChange={(event) => updateEditingField(record.id, "university", event.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              value={editingForm.provinceUniversityTotal}
+                              inputMode="numeric"
+                              onChange={(event) =>
+                                updateEditingField(record.id, "provinceUniversityTotal", event.target.value)
+                              }
+                            />
+                          </td>
+                          <td>
+                            <input
+                              value={editingForm.cityUniversityTotal}
+                              inputMode="numeric"
+                              onChange={(event) => updateEditingField(record.id, "cityUniversityTotal", event.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              value={editingForm.productTags}
+                              onChange={(event) => updateEditingField(record.id, "productTags", event.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              value={editingForm.purchaseTags}
+                              onChange={(event) => updateEditingField(record.id, "purchaseTags", event.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              value={editingForm.equipmentDetails}
+                              onChange={(event) => updateEditingField(record.id, "equipmentDetails", event.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              value={editingForm.painPoints}
+                              onChange={(event) => updateEditingField(record.id, "painPoints", event.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              value={editingForm.deliveryContent}
+                              onChange={(event) => updateEditingField(record.id, "deliveryContent", event.target.value)}
+                            />
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td>{record.province}</td>
+                          <td>{record.city}</td>
+                          <td>
+                            <strong>{record.university}</strong>
+                          </td>
+                          <td>{record.provinceUniversityTotal ?? "-"}</td>
+                          <td>{record.cityUniversityTotal ?? "-"}</td>
+                          <td>{joinList(record.productTags)}</td>
+                          <td>{joinList(record.purchaseTags)}</td>
+                          <td>{joinList(record.equipmentDetails)}</td>
+                          <td>{joinList(record.painPoints)}</td>
+                          <td>{record.deliveryContent || "-"}</td>
+                        </>
+                      )}
+                      <td>
+                        <div className="row-actions">
+                          {editingForm ? (
+                            <>
+                              <button
+                                className="table-primary-action"
+                                type="button"
+                                disabled={savingId === record.id}
+                                onClick={() => void saveRecord(record)}
+                              >
+                                <Save size={15} aria-hidden="true" />
+                                保存
+                              </button>
+                              <button className="table-plain-action" type="button" onClick={() => cancelEditRecord(record.id)}>
+                                取消
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button className="table-plain-action" type="button" onClick={() => void startEditRecord(record)}>
+                                <Pencil size={15} aria-hidden="true" />
+                                编辑
+                              </button>
+                              <button
+                                className="table-danger-action"
+                                type="button"
+                                aria-label={`删除${record.university}`}
+                                onClick={() => void deleteRecord(record)}
+                              >
+                                <Trash2 size={15} aria-hidden="true" />
+                                删除
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

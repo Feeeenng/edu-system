@@ -17,6 +17,8 @@ export const CSV_COLUMNS: CsvColumn[] = [
   { key: "owner", label: "负责人", aliases: ["owner"] },
   { key: "purchaseTags", label: "采购标签", aliases: ["purchaseTags"] },
   { key: "productTags", label: "产品标签", aliases: ["productTags"] },
+  { key: "provinceUniversityTotal", label: "省份高校总数", aliases: ["省高校总数", "provinceUniversityTotal"] },
+  { key: "cityUniversityTotal", label: "城市高校总数", aliases: ["市高校总数", "cityUniversityTotal"] },
   { key: "resourceType", label: "资源类型", aliases: ["resourceType"] },
   { key: "resourceAmount", label: "资源数量", aliases: ["resourceAmount"] },
   { key: "resourceUnit", label: "资源单位", aliases: ["resourceUnit"] },

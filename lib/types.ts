@@ -12,6 +12,8 @@ export type DeliveryRecord = {
   owner?: string;
   purchaseTags: string[];
   productTags: string[];
+  provinceUniversityTotal?: number;
+  cityUniversityTotal?: number;
   resourceType?: string;
   resourceAmount?: number;
   resourceUnit?: string;
@@ -50,6 +52,8 @@ export type CoverageSummary = {
   deliveryCount: number;
   productCount: number;
   purchaseTagCount: number;
+  totalUniversityCount?: number;
+  coverageRate?: number;
 };
 
 export type RegionMetric = {
@@ -57,6 +61,8 @@ export type RegionMetric = {
   province?: string;
   city?: string;
   universityCount: number;
+  totalUniversityCount?: number;
+  coverageRate?: number;
   deliveryCount: number;
   productTags: string[];
   purchaseTags: string[];
