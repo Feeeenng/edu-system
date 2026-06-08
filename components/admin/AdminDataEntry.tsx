@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, FileUp, Plus } from "lucide-react";
+import { ArrowLeft, Download, FileUp, Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { exportDeliveriesToCsv } from "@/lib/csv/export";
 import { parseDeliveryCsv } from "@/lib/csv/parse";
@@ -72,10 +72,17 @@ export function AdminDataEntry() {
   const [records, setRecords] = useState<DeliveryRecord[]>([]);
   const [ready, setReady] = useState(false);
   const [message, setMessage] = useState("当前使用浏览器本地录入模式，适合静态预览和本机维护。");
+  const [homeHref, setHomeHref] = useState("/");
   const providerRef = useRef(createBrowserProvider());
   const formRef = useRef<HTMLFormElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const latestRecords = useMemo(() => records.slice(0, 10), [records]);
+
+  useEffect(() => {
+    if (window.location.protocol === "file:") {
+      setHomeHref("../index.html");
+    }
+  }, []);
 
   useEffect(() => {
     void providerRef.current
@@ -134,6 +141,10 @@ export function AdminDataEntry() {
           <h1>高校交付数据录入</h1>
         </div>
         <div className="admin-actions">
+          <a className="admin-action-link" href={homeHref}>
+            <ArrowLeft size={16} aria-hidden="true" />
+            返回首页
+          </a>
           <label className="file-action">
             <FileUp size={16} aria-hidden="true" />
             CSV导入

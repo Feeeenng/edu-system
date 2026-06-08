@@ -73,7 +73,7 @@
 
 .coverage-import-action {
   min-height: 46px;
-  padding: 0 14px;
+  padding: 0 16px;
 }
 
 .import-message {
@@ -137,6 +137,23 @@
   transform: translateY(-1px);
   border-color: #60a5fa;
   box-shadow: 0 12px 28px rgba(37, 99, 235, 0.13);
+}
+
+.coverage-actions .file-action,
+.coverage-actions .ghost-action {
+  min-height: 46px;
+  padding: 0 16px;
+  border-color: #2563eb;
+  color: #1d4ed8;
+  background: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.coverage-actions .ghost-action {
+  color: #ffffff;
+  background: #2563eb;
 }
 
 .product-tab.is-active,
@@ -274,8 +291,7 @@
     auto;
 }
 
-.map-stage::before,
-.map-stage::after {
+.map-stage::before {
   position: absolute;
   content: "";
   pointer-events: none;
@@ -291,22 +307,12 @@
   animation: mapLightSweep 5.6s ease-in-out infinite;
 }
 
-.map-stage::after {
-  inset: auto 18px 18px auto;
-  width: 180px;
-  height: 180px;
-  border: 1px solid rgba(37, 99, 235, 0.14);
-  border-radius: 50%;
-  background: repeating-conic-gradient(from 0deg, rgba(37, 99, 235, 0.16) 0 12deg, transparent 12deg 26deg);
-  opacity: 0.34;
-  animation: radarSpin 12s linear infinite;
-}
-
 .echarts-map-shell {
   position: relative;
   display: grid;
-  height: clamp(520px, calc(100vh - 360px), 820px);
-  min-height: clamp(520px, calc(100vh - 360px), 820px);
+  grid-template-rows: minmax(420px, 1fr) auto;
+  height: clamp(560px, calc(100vh - 330px), 840px);
+  min-height: clamp(560px, calc(100vh - 330px), 840px);
 }
 
 .map-engine-label {
@@ -327,8 +333,8 @@
   position: relative;
   z-index: 2;
   width: 100%;
-  height: clamp(520px, calc(100vh - 360px), 820px);
-  min-height: clamp(520px, calc(100vh - 360px), 820px);
+  height: auto;
+  min-height: 420px;
 }
 
 .map-scanline {
@@ -375,26 +381,25 @@
 }
 
 .map-access-list {
-  position: absolute;
-  right: 14px;
-  top: 14px;
-  display: grid;
+  position: relative;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  width: 190px;
-  max-height: 330px;
-  padding: 8px;
+  max-height: 104px;
+  margin: 0 16px 16px;
+  padding: 10px;
   overflow: auto;
   border: 1px solid #dbeafe;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: 0 16px 38px rgba(15, 23, 42, 0.1);
-  z-index: 5;
+  background: rgba(248, 250, 252, 0.94);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
 .province-access {
   justify-content: space-between;
-  min-height: 34px;
-  padding: 0 9px;
+  min-height: 32px;
+  padding: 0 10px;
   font-size: 12px;
 }
 
@@ -621,17 +626,17 @@
   }
 
   .map-stage,
-  .echarts-map-shell,
+  .echarts-map-shell {
+    height: 520px;
+    min-height: 520px;
+  }
+
   .echarts-map-canvas {
-    height: 440px;
-    min-height: 440px;
+    min-height: 360px;
   }
 
   .map-access-list {
-    position: static;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: auto;
-    max-height: 180px;
+    max-height: 132px;
     margin: 0 12px 12px;
   }
 }
@@ -646,12 +651,6 @@
   50% {
     transform: translateX(10%) scale(1.04);
     opacity: 0.8;
-  }
-}
-
-@keyframes radarSpin {
-  to {
-    transform: rotate(360deg);
   }
 }
 
@@ -687,7 +686,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .map-stage::before,
-  .map-stage::after,
   .map-scanline,
   .map-pulse-dot {
     animation: none;

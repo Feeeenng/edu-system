@@ -42,6 +42,7 @@
 }
 
 .admin-actions button,
+.admin-action-link,
 .file-action,
 .primary-action {
   display: inline-flex;
@@ -55,6 +56,7 @@
   color: #1d4ed8;
   background: #ffffff;
   font-weight: 700;
+  text-decoration: none;
 }
 
 .file-action {
