@@ -1,7 +1,7 @@
 "use client";
 
 import type { DeliveryDataProvider } from "@/lib/data/provider";
-import type { DeliveryPayload, DeliveryRecord } from "@/lib/types";
+import type { DeliveryRecord } from "@/lib/types";
 
 function buildJsonHeaders() {
   return {

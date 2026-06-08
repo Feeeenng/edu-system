@@ -14,6 +14,7 @@ import type { RegionMetric } from "@/lib/types";
 const MAP_NAME = "edu-china";
 const REGISTERED_MAPS = new Set<string>();
 type MapJsonModule = { default: unknown };
+type GeoLabelFormatterParams = { name?: string };
 
 const SHORT_REGION_NAMES: Record<string, string> = {
   北京市: "北京",
@@ -189,7 +190,7 @@ function buildMapOption(metrics: RegionMetric[], mapName: string, selectedRegion
         show: true,
         color: "#334155",
         fontSize: isCountryMap ? 10 : 11,
-        formatter: (params: DefaultLabelFormatterCallbackParams) => getRegionLabel(params.name),
+        formatter: (params: GeoLabelFormatterParams) => getRegionLabel(params.name),
         overflow: "truncate",
       },
       itemStyle: {
