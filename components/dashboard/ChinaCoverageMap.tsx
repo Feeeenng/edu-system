@@ -82,6 +82,12 @@ async function registerProvinceMap(province: string) {
   return mapName;
 }
 
+function getRenderableMapName(province?: string) {
+  if (!province) return MAP_NAME;
+  const mapName = getProvinceMapName(province);
+  return REGISTERED_MAPS.has(mapName) ? mapName : MAP_NAME;
+}
+
 function shouldSkipEchartsRuntime() {
   // JSDOM 没有真实 canvas 绘制上下文，单元测试只验证可访问结构和交互状态。
   return process.env.NODE_ENV === "test";
@@ -192,7 +198,7 @@ export function ChinaCoverageMap({
 }: ChinaCoverageMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ECharts | null>(null);
-  const mapName = selectedProvince ? getProvinceMapName(selectedProvince) : MAP_NAME;
+  const mapName = getRenderableMapName(selectedProvince);
   const selectedRegion = selectedProvince ? selectedCity : selectedProvince;
   const option = useMemo(() => buildMapOption(metrics, mapName, selectedRegion), [mapName, metrics, selectedRegion]);
   const optionRef = useRef(option);
@@ -258,7 +264,8 @@ export function ChinaCoverageMap({
         await registerProvinceMap(selectedProvince);
       }
       if (!disposed) {
-        chartRef.current?.setOption(option, true);
+        const nextMapName = getRenderableMapName(selectedProvince);
+        chartRef.current?.setOption(buildMapOption(metrics, nextMapName, selectedRegion), true);
         chartRef.current?.resize();
       }
     };
@@ -267,7 +274,7 @@ export function ChinaCoverageMap({
     return () => {
       disposed = true;
     };
-  }, [option, selectedProvince]);
+  }, [metrics, option, selectedProvince, selectedRegion]);
 
   return (
     <div className="echarts-map-shell" role="img" aria-label="ECharts 中国高校覆盖地图">

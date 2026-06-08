@@ -186,6 +186,11 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     }
 
     const nextRecords = result.records.map(createDeliveryRecord);
+    if (nextRecords.length === 0) {
+      setImportMessage("CSV中没有可导入的记录，已保留现有数据。");
+      return;
+    }
+
     try {
       await createBrowserProvider().replaceAll(nextRecords);
       await refresh();

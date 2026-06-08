@@ -73,8 +73,23 @@
 
 ### Task 6: Verification
 
-- [ ] Run focused unit tests for CSV, dashboard, hook, analytics, data provider.
-- [ ] Run `bun run lint`.
-- [ ] Run `bun run build`.
-- [ ] Run `bun run export`.
-- [ ] Run Playwright checks for desktop, mobile, and large-screen dashboard.
+- [x] Run focused unit tests for CSV, dashboard, hook, analytics, data provider.
+- [x] Run `bun run lint`.
+- [x] Run `bun run build`.
+- [x] Run `bun run export`.
+- [x] Run Playwright checks for desktop, mobile, and large-screen dashboard.
+
+### Task 7: Review Follow-Up Hardening
+
+**Files:**
+- Modify: `components/dashboard/CoverageDashboard.tsx`
+- Modify: `components/dashboard/ChinaCoverageMap.tsx`
+- Modify: `lib/data/normalize.ts`
+- Modify: `playwright.config.ts`
+- Create: `scripts/dev-e2e.mjs`
+- Modify tests for dashboard/data normalization
+
+- [x] Prevent empty CSV uploads from replacing existing browser data.
+- [x] Normalize common province short names such as `广东` and `台湾`.
+- [x] Avoid switching ECharts to an unregistered province map when no province GeoJSON exists.
+- [x] Make Playwright dev server startup use a clean Next dev cache and a dedicated port.

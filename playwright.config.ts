@@ -5,15 +5,16 @@ const e2eBaseUrl = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${e2ePor
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  timeout: 30_000,
+  timeout: 60_000,
   use: {
     baseURL: e2eBaseUrl,
     trace: "on-first-retry",
   },
   webServer: {
-    command: `bun run dev -- --hostname 127.0.0.1 --port ${e2ePort}`,
+    command: "bun scripts/dev-e2e.mjs",
     url: e2eBaseUrl,
     reuseExistingServer: process.env.PLAYWRIGHT_REUSE_SERVER === "1",
+    timeout: 120_000,
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },

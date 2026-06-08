@@ -61,6 +61,42 @@ describe("CoverageDashboard", () => {
     expect(screen.getByText("真实数据上传")).toBeInTheDocument();
   });
 
+  it("首页导入只有表头的 CSV 不会清空已有真实数据", async () => {
+    render(<CoverageDashboard initialRecords={[createDeliveryRecord({ university: "已有真实大学" })]} />);
+
+    await waitFor(() => expect(screen.getByText("已有真实大学")).toBeInTheDocument());
+
+    const file = new File(["省份,地区/城市,高校名称,产品标签"], "empty.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText("首页CSV导入"), { target: { files: [file] } });
+
+    await waitFor(() => expect(screen.getByText("CSV中没有可导入的记录，已保留现有数据。")).toBeInTheDocument());
+    expect(screen.getByText("已有真实大学")).toBeInTheDocument();
+  });
+
+  it("导入省份简称时会标准化为完整省名并支持市级下钻", async () => {
+    render(<CoverageDashboard />);
+
+    const file = new File(
+      [
+        [
+          "省份,地区/城市,高校名称,产品标签,采购标签,设备明细,业务痛点",
+          "广东,深圳市,简称省份大学,SDDC,信创,超融合节点x2,省份简称录入",
+        ].join("\n"),
+      ],
+      "short-province.csv",
+      { type: "text/csv" },
+    );
+
+    fireEvent.change(screen.getByLabelText("首页CSV导入"), { target: { files: [file] } });
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /广东省/ })).toBeInTheDocument());
+    act(() => fireEvent.click(screen.getAllByRole("button", { name: /广东省/ })[0]));
+    expect(screen.getByRole("heading", { name: "广东省覆盖详情" })).toBeInTheDocument();
+    act(() => fireEvent.click(screen.getAllByRole("button", { name: /深圳市/ })[0]));
+    expect(screen.getByRole("heading", { name: "广东省 / 深圳市覆盖详情" })).toBeInTheDocument();
+    expect(screen.getByText("简称省份大学")).toBeInTheDocument();
+  });
+
   it("展示 ECharts 全国地图并支持点击省份钻取到市级区域", async () => {
     render(<CoverageDashboard initialRecords={sampleDeliveries} />);
 

@@ -38,6 +38,24 @@ describe("data normalize", () => {
     expect(payload.productTags).toEqual([]);
     expect(payload.resourceAmount).toBeUndefined();
   });
+
+  it("规范化常见省份简称为地图可识别全称", () => {
+    expect(normalizeDeliveryPayload({
+      province: "广东",
+      city: "深圳市",
+      university: "深圳大学",
+      purchaseTags: [],
+      productTags: [],
+    }).province).toBe("广东省");
+
+    expect(normalizeDeliveryPayload({
+      province: "台湾",
+      city: "台北市",
+      university: "台湾测试大学",
+      purchaseTags: [],
+      productTags: [],
+    }).province).toBe("台湾省");
+  });
 });
 
 describe("data validation", () => {
