@@ -545,7 +545,9 @@
 .rank-console {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  min-height: 0;
+  height: clamp(540px, calc(100vh - 318px), 760px);
+  min-height: clamp(540px, calc(100vh - 318px), 760px);
+  max-height: clamp(540px, calc(100vh - 318px), 760px);
   overflow: hidden;
   border: 1px solid rgba(147, 197, 253, 0.9);
   border-radius: 8px;
@@ -793,10 +795,47 @@
 .university-list {
   display: grid;
   align-content: start;
-  gap: 10px;
+  gap: 12px;
   min-height: 0;
   padding: 12px 14px 14px;
   overflow: auto;
+}
+
+.province-case-group {
+  display: grid;
+  gap: 8px;
+}
+
+.province-case-group > header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid rgba(191, 219, 254, 0.95);
+  border-radius: 8px;
+  color: var(--dash-blue-900);
+  background: rgba(239, 246, 255, 0.96);
+  backdrop-filter: blur(8px);
+}
+
+.province-case-group > header strong {
+  font-size: 13px;
+}
+
+.province-case-group > header small {
+  color: var(--dash-slate-500);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.province-case-list {
+  display: grid;
+  gap: 10px;
 }
 
 .empty-case-state {
@@ -941,7 +980,9 @@
   }
 
   .rank-console {
-    min-height: 420px;
+    height: 520px;
+    min-height: 520px;
+    max-height: 520px;
   }
 
   .map-stage,
@@ -969,7 +1010,9 @@
   }
 
   .rank-console {
+    height: 500px;
     min-height: 500px;
+    max-height: 500px;
   }
 
   .command-title {

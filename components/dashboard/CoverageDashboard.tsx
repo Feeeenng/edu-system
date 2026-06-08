@@ -37,6 +37,10 @@ type CoverageDashboardProps = {
 type CoverageSortKey = "coverageRate" | "universityCount" | "totalUniversityCount";
 type CoverageSortDirection = "asc" | "desc";
 type RightPanelTab = "coverage" | "cases";
+type ProvinceCaseGroup = {
+  province: string;
+  cases: UniversityDetail[];
+};
 
 function formatTags(tags: string[]) {
   return tags.length > 0 ? tags.join(" / ") : "暂无标签";
@@ -125,6 +129,30 @@ function getUniversityCards(records: DeliveryRecord[]) {
     })
     .map((record) => getUniversityDetail(records, record.province, record.city, record.university))
     .filter(isUniversityDetail);
+}
+
+function groupUniversityCardsByProvince(cards: UniversityDetail[]): ProvinceCaseGroup[] {
+  const groups = new Map<string, UniversityDetail[]>();
+  for (const card of cards) {
+    const group = groups.get(card.province);
+    if (group) {
+      group.push(card);
+    } else {
+      groups.set(card.province, [card]);
+    }
+  }
+
+  return Array.from(groups.entries())
+    .map(([province, cases]) => ({
+      province,
+      cases: cases.sort(
+        (a, b) =>
+          b.deliveries.length - a.deliveries.length ||
+          a.city.localeCompare(b.city, "zh-CN") ||
+          a.university.localeCompare(b.university, "zh-CN"),
+      ),
+    }))
+    .sort((a, b) => b.cases.length - a.cases.length || a.province.localeCompare(b.province, "zh-CN"));
 }
 
 function getCoverageTone(metric: RegionMetric) {
@@ -236,6 +264,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     [coverageSort.direction, coverageSort.key, mapMetrics],
   );
   const universityCards = useMemo(() => getUniversityCards(viewRecords), [viewRecords]);
+  const provinceCaseGroups = useMemo(() => groupUniversityCardsByProvince(universityCards), [universityCards]);
   const topRegions = useMemo(() => [...getRankableMetrics(mapMetrics)].sort(compareHigherCoverage).slice(0, 5), [mapMetrics]);
   const bottomRegions = useMemo(() => [...getRankableMetrics(mapMetrics)].sort(compareLowerCoverage).slice(0, 5), [mapMetrics]);
   const insightItems = useMemo(
@@ -603,6 +632,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
           >
             <UniversityCasePanel
               isEmpty={isEmpty}
+              provinceCaseGroups={provinceCaseGroups}
               scopeLabel={selectedCity ?? selectedProvince ?? "全国"}
               universityCards={universityCards}
             />
@@ -647,11 +677,12 @@ type UniversityCaseCardProps = {
 
 type UniversityCasePanelProps = {
   isEmpty: boolean;
+  provinceCaseGroups: ProvinceCaseGroup[];
   scopeLabel: string;
   universityCards: UniversityDetail[];
 };
 
-function UniversityCasePanel({ isEmpty, scopeLabel, universityCards }: UniversityCasePanelProps) {
+function UniversityCasePanel({ isEmpty, provinceCaseGroups, scopeLabel, universityCards }: UniversityCasePanelProps) {
   return (
     <>
       <div className="case-heading">
@@ -668,8 +699,18 @@ function UniversityCasePanel({ isEmpty, scopeLabel, universityCards }: Universit
             <p>{isEmpty ? "请从首页导入 CSV，或进入录入页新增记录。" : "可调整产品、关键词或返回上一级区域。"}</p>
           </div>
         )}
-        {universityCards.map((detail) => (
-          <UniversityCaseCard detail={detail} key={`${detail.province}-${detail.city}-${detail.university}`} />
+        {provinceCaseGroups.map((group) => (
+          <section className="province-case-group" key={group.province} aria-label={`${group.province}高校案例`}>
+            <header>
+              <strong>{group.province}</strong>
+              <small>{group.cases.length} 所高校</small>
+            </header>
+            <div className="province-case-list">
+              {group.cases.map((detail) => (
+                <UniversityCaseCard detail={detail} key={`${detail.province}-${detail.city}-${detail.university}`} />
+              ))}
+            </div>
+          </section>
         ))}
       </div>
     </>
