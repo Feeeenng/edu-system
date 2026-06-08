@@ -126,7 +126,7 @@ export function AdminDataEntry() {
   const [cityOptions, setCityOptions] = useState<string[]>([]);
   const [cityLoading, setCityLoading] = useState(false);
   const [ready, setReady] = useState(false);
-  const [message, setMessage] = useState("当前使用浏览器本地录入模式，适合静态预览和本机维护。");
+  const [message, setMessage] = useState("当前使用服务端数据模式，录入、导入和删除都会写入 /api/deliveries。");
   const [homeHref, setHomeHref] = useState("/");
   const providerRef = useRef<ReturnType<typeof createClientProvider> | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -161,7 +161,7 @@ export function AdminDataEntry() {
       .list()
       .then(setRecords)
       .catch((loadError) => {
-        setMessage(loadError instanceof Error ? loadError.message : "本地数据读取失败");
+        setMessage(loadError instanceof Error ? loadError.message : "服务端数据读取失败");
       })
       .finally(() => {
         setReady(true);

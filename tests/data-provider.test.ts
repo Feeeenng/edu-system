@@ -83,10 +83,10 @@ describe("data validation", () => {
     ).toEqual({ ok: true });
   });
 
-  it("校验批量替换 payload 必须是非空数组", async () => {
+  it("校验批量替换 payload 必须是数组，允许空数组清空数据", async () => {
     const { validateDeliveryPayloadArray } = await import("@/lib/data/validation");
 
-    expect(validateDeliveryPayloadArray([])).toEqual({ ok: false, error: "交付记录不能为空" });
+    expect(validateDeliveryPayloadArray([])).toEqual({ ok: true });
     expect(validateDeliveryPayloadArray({})).toEqual({ ok: false, error: "交付记录必须是数组" });
   });
 
@@ -386,7 +386,7 @@ describe("delivery api route", () => {
     expect(store.mutateServerRecords).not.toHaveBeenCalled();
   });
 
-  it("PATCH 空数组返回 400 且不替换数据", async () => {
+  it("PATCH 空数组允许清空服务端数据", async () => {
     const { route, store } = await loadRoute();
     const response = await route.PATCH(
       new Request("http://localhost/api/deliveries", {
@@ -396,9 +396,9 @@ describe("delivery api route", () => {
       }),
     );
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: "交付记录不能为空" });
-    expect(store.mutateServerRecords).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ records: [] });
+    expect(store.mutateServerRecords).toHaveBeenCalledTimes(1);
   });
 
   it("PATCH productTags 类型错误返回 400 且不替换数据", async () => {
@@ -683,6 +683,46 @@ describe("server store", () => {
     }
   });
 
+  it("Vercel 环境缺少 Supabase 和 Blob 配置时读取失败", async () => {
+    const originalVercel = process.env.VERCEL;
+    const originalBlobToken = process.env.BLOB_READ_WRITE_TOKEN;
+    const originalSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const originalSupabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    try {
+      process.env.VERCEL = "1";
+      delete process.env.BLOB_READ_WRITE_TOKEN;
+      delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+      delete process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      vi.resetModules();
+      const { readServerRecords } = await import("@/lib/data/server-store");
+
+      await expect(readServerRecords()).rejects.toThrow("Vercel 数据源未配置");
+    } finally {
+      if (originalVercel === undefined) {
+        delete process.env.VERCEL;
+      } else {
+        process.env.VERCEL = originalVercel;
+      }
+      if (originalBlobToken === undefined) {
+        delete process.env.BLOB_READ_WRITE_TOKEN;
+      } else {
+        process.env.BLOB_READ_WRITE_TOKEN = originalBlobToken;
+      }
+      if (originalSupabaseUrl === undefined) {
+        delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+      } else {
+        process.env.NEXT_PUBLIC_SUPABASE_URL = originalSupabaseUrl;
+      }
+      if (originalSupabaseKey === undefined) {
+        delete process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      } else {
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = originalSupabaseKey;
+      }
+      vi.resetModules();
+    }
+  });
+
   it("Blob get 返回 null 时回退空数据", async () => {
     const originalVercel = process.env.VERCEL;
     const originalToken = process.env.BLOB_READ_WRITE_TOKEN;
@@ -769,134 +809,5 @@ describe("server store", () => {
       vi.doUnmock("@vercel/blob");
       vi.resetModules();
     }
-  });
-});
-
-describe("browser provider", () => {
-  afterEach(() => {
-    window.localStorage.clear();
-  });
-
-  it("localStorage 损坏时返回 seed 且不覆盖坏数据", async () => {
-    const seed: DeliveryRecord[] = [
-      {
-        id: "delivery-seed",
-        province: "广东省",
-        city: "深圳市",
-        university: "深圳大学",
-        purchaseTags: [],
-        productTags: ["SDDC"],
-        updatedAt: "2026-06-05T00:00:00.000Z",
-      },
-    ];
-
-    window.localStorage.setItem("edu-system.deliveries", "{bad json");
-    const { createBrowserProvider } = await import("@/lib/data/browser-provider");
-    const provider = createBrowserProvider(seed);
-
-    expect(await provider.list()).toEqual(seed);
-    expect(window.localStorage.getItem("edu-system.deliveries")).toBe("{bad json");
-  });
-
-  it("localStorage 损坏时拒绝写操作且保留坏数据", async () => {
-    window.localStorage.setItem("edu-system.deliveries", "{bad json");
-    const { createBrowserProvider } = await import("@/lib/data/browser-provider");
-    const provider = createBrowserProvider();
-    const payload: DeliveryPayload = {
-      province: "广东省",
-      city: "深圳市",
-      university: "深圳大学",
-      purchaseTags: [],
-      productTags: [],
-    };
-
-    await expect(provider.replaceAll([payload])).rejects.toThrow("本地浏览器数据损坏，请先导出/清理后再写入");
-    await expect(provider.create(payload)).rejects.toThrow("本地浏览器数据损坏，请先导出/清理后再写入");
-    await expect(provider.update("delivery-existing", payload)).rejects.toThrow(
-      "本地浏览器数据损坏，请先导出/清理后再写入",
-    );
-    await expect(provider.remove("delivery-existing")).rejects.toThrow(
-      "本地浏览器数据损坏，请先导出/清理后再写入",
-    );
-    expect(window.localStorage.getItem("edu-system.deliveries")).toBe("{bad json");
-  });
-
-  it("localStorage 空字符串视为损坏数据且拒绝覆盖", async () => {
-    const seed: DeliveryRecord[] = [
-      {
-        id: "delivery-seed",
-        province: "广东省",
-        city: "深圳市",
-        university: "深圳大学",
-        purchaseTags: [],
-        productTags: [],
-        updatedAt: "2026-06-05T00:00:00.000Z",
-      },
-    ];
-    const payload: DeliveryPayload = {
-      province: "广东省",
-      city: "深圳市",
-      university: "深圳大学",
-      purchaseTags: [],
-      productTags: [],
-    };
-
-    window.localStorage.setItem("edu-system.deliveries", "");
-    const { createBrowserProvider } = await import("@/lib/data/browser-provider");
-    const provider = createBrowserProvider(seed);
-
-    expect(await provider.list()).toEqual(seed);
-    await expect(provider.create(payload)).rejects.toThrow("本地浏览器数据损坏，请先导出/清理后再写入");
-    expect(window.localStorage.getItem("edu-system.deliveries")).toBe("");
-  });
-
-  it("localStorage 持久化空数组时 list 不回灌 seed", async () => {
-    const seed: DeliveryRecord[] = [
-      {
-        id: "delivery-seed",
-        province: "广东省",
-        city: "深圳市",
-        university: "深圳大学",
-        purchaseTags: [],
-        productTags: [],
-        updatedAt: "2026-06-05T00:00:00.000Z",
-      },
-    ];
-    const { createBrowserProvider } = await import("@/lib/data/browser-provider");
-    const provider = createBrowserProvider(seed);
-
-    await provider.replaceAll([]);
-
-    expect(await provider.list()).toEqual([]);
-    expect(window.localStorage.getItem("edu-system.deliveries")).toBe("[]");
-  });
-
-  it("localStorage 元素损坏时返回 seed 且拒绝写操作", async () => {
-    const seed: DeliveryRecord[] = [
-      {
-        id: "delivery-seed",
-        province: "广东省",
-        city: "深圳市",
-        university: "深圳大学",
-        purchaseTags: [],
-        productTags: [],
-        updatedAt: "2026-06-05T00:00:00.000Z",
-      },
-    ];
-    const payload: DeliveryPayload = {
-      province: "广东省",
-      city: "深圳市",
-      university: "深圳大学",
-      purchaseTags: [],
-      productTags: [],
-    };
-
-    window.localStorage.setItem("edu-system.deliveries", "[null]");
-    const { createBrowserProvider } = await import("@/lib/data/browser-provider");
-    const provider = createBrowserProvider(seed);
-
-    expect(await provider.list()).toEqual(seed);
-    await expect(provider.create(payload)).rejects.toThrow("本地浏览器数据损坏，请先导出/清理后再写入");
-    expect(window.localStorage.getItem("edu-system.deliveries")).toBe("[null]");
   });
 });

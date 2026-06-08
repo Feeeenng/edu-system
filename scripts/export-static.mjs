@@ -61,7 +61,6 @@ async function runNextBuild(rootNodeModules, tempRoot) {
       cwd: tempRoot,
       env: {
         ...process.env,
-        NEXT_PUBLIC_DATA_MODE: "browser",
         NEXT_OUTPUT_EXPORT: "true",
       },
       stdio: "inherit",

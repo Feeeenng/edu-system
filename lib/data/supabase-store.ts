@@ -10,10 +10,10 @@ type SupabaseDeliveryRow = {
 };
 
 function getSupabaseConfig() {
-  const url = process.env.SUPABASE_URL;
-  const token = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const token = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !token) {
-    throw new Error("Supabase 未配置 SUPABASE_URL 或 SUPABASE_SERVICE_ROLE_KEY");
+    throw new Error("Supabase 未配置 NEXT_PUBLIC_SUPABASE_URL 或 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
   }
 
   return {

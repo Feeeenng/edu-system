@@ -155,10 +155,6 @@ export function validateDeliveryPayloadArray(payloads: unknown): ValidationResul
     return { ok: false, error: "交付记录必须是数组" };
   }
 
-  if (payloads.length === 0) {
-    return { ok: false, error: "交付记录不能为空" };
-  }
-
   for (let index = 0; index < payloads.length; index += 1) {
     const result = validateDeliveryPayload(payloads[index]);
     if (!result.ok) {

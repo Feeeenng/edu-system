@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { filterDeliveries } from "@/lib/analytics/filter";
 import { buildCoverageSummary, groupByProvince } from "@/lib/analytics/summary";
-import { createClientProvider, shouldUseApiProvider } from "@/lib/data/client-provider";
+import { createClientProvider } from "@/lib/data/client-provider";
 import type { DeliveryFilters, DeliveryRecord } from "@/lib/types";
 
 type UseCoverageDataOptions = {
@@ -16,16 +16,6 @@ function getProductOptions(records: DeliveryRecord[]) {
   return Array.from(new Set(records.flatMap((record) => record.productTags).filter(Boolean))).sort((a, b) =>
     a.localeCompare(b, "zh-CN"),
   );
-}
-
-async function fetchApiRecords() {
-  const response = await fetch("/api/deliveries", { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(`交付数据读取失败：HTTP ${response.status}`);
-  }
-
-  const payload = (await response.json()) as { records?: DeliveryRecord[] };
-  return Array.isArray(payload.records) ? payload.records : [];
 }
 
 export function useCoverageData(options: UseCoverageDataOptions = {}) {
@@ -41,11 +31,7 @@ export function useCoverageData(options: UseCoverageDataOptions = {}) {
     setError(undefined);
 
     try {
-      const nextRecords = options.initialRecords
-        ? initialRecords
-        : shouldUseApiProvider()
-          ? await fetchApiRecords()
-          : await createClientProvider().list();
+      const nextRecords = options.initialRecords ? initialRecords : await createClientProvider().list();
       setRecords(nextRecords);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "交付数据读取失败");

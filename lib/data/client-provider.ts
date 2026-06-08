@@ -1,14 +1,9 @@
 "use client";
 
 import { createApiProvider } from "@/lib/data/api-provider";
-import { createBrowserProvider } from "@/lib/data/browser-provider";
 import type { DeliveryDataProvider } from "@/lib/data/provider";
-import type { DeliveryRecord } from "@/lib/types";
 
-export function shouldUseApiProvider() {
-  return process.env.NEXT_PUBLIC_DATA_MODE === "api" && typeof window !== "undefined" && window.location.protocol !== "file:";
-}
-
-export function createClientProvider(seed: DeliveryRecord[] = []): DeliveryDataProvider {
-  return shouldUseApiProvider() ? createApiProvider() : createBrowserProvider(seed);
+export function createClientProvider(): DeliveryDataProvider {
+  // 客户端统一通过服务端 API 读写，避免浏览器端数据与 Supabase 数据分叉。
+  return createApiProvider();
 }

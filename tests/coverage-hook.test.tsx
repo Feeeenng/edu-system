@@ -1,11 +1,11 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { useCoverageData } from "@/components/dashboard/useCoverageData";
 import { sampleDeliveries } from "@/tests/fixtures/deliveries";
 
 describe("useCoverageData", () => {
   afterEach(() => {
-    window.localStorage.clear();
+    vi.restoreAllMocks();
   });
 
   it("有初始真实数据时提供产品案例标签", async () => {
@@ -38,32 +38,40 @@ describe("useCoverageData", () => {
     expect(result.current.filteredRecords.some((record) => record.painPoints?.includes("VMware授权成本持续上升"))).toBe(true);
   });
 
-  it("默认从浏览器本地数据源读取管理页录入记录", async () => {
-    window.localStorage.setItem(
-      "edu-system.deliveries",
-      JSON.stringify([
-        {
-          id: "delivery-local-test",
-          province: "广东省",
-          city: "深圳市",
-          university: "本地录入大学",
-          purchaseTags: ["信创"],
-          productTags: ["SDDC"],
-          equipmentDetails: ["本地设备x1"],
-          painPoints: ["本地痛点"],
-          updatedAt: "2026-06-06T00:00:00.000Z",
-        },
-      ]),
+  it("默认从服务端 API 读取管理页录入记录", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          records: [
+            {
+              id: "delivery-api-test",
+              province: "广东省",
+              city: "深圳市",
+              university: "服务端录入大学",
+              purchaseTags: ["信创"],
+              productTags: ["SDDC"],
+              equipmentDetails: ["服务端设备x1"],
+              painPoints: ["服务端痛点"],
+              updatedAt: "2026-06-06T00:00:00.000Z",
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
     );
 
     const { result } = renderHook(() => useCoverageData());
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(result.current.records.map((record) => record.university)).toEqual(["本地录入大学"]);
+    expect(result.current.records.map((record) => record.university)).toEqual(["服务端录入大学"]);
   });
 
   it("没有真实数据时默认保持空数据", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ records: [] }), { status: 200, headers: { "Content-Type": "application/json" } }),
+    );
+
     const { result } = renderHook(() => useCoverageData());
 
     await waitFor(() => expect(result.current.loading).toBe(false));

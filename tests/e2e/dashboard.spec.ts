@@ -7,9 +7,8 @@ const e2eCsv = [
 ].join("\n");
 
 async function openCleanDashboard(page: Page) {
+  await page.request.patch("/api/deliveries", { data: [] });
   await page.goto("/");
-  await page.evaluate(() => window.localStorage.clear());
-  await page.reload();
 }
 
 async function importDashboardCsv(page: Page) {
@@ -45,26 +44,27 @@ test("dashboard coverage map supports product filtering and province drilldown",
   await expect(page.getByRole("button", { name: "返回省份" })).toBeVisible();
 });
 
-test("admin data entry creates a local delivery record", async ({ page }) => {
-  await page.goto("/");
-  await page.evaluate(() => window.localStorage.clear());
+test("admin data entry creates a server delivery record", async ({ page }) => {
+  await page.request.patch("/api/deliveries", { data: [] });
   await page.goto("/admin");
 
   await expect(page.getByRole("heading", { name: "高校交付数据录入" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "新增记录" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "新增" })).toBeEnabled();
 
-  await page.getByLabel("省份").fill("广东省");
-  await page.getByLabel("城市").fill("深圳市");
-  await page.getByLabel("高校名称").fill("测试录入大学");
-  await page.getByLabel("产品标签").fill("SDDC;EDS");
-  await page.getByLabel("设备明细").fill("超融合节点x3;EDS存储节点x2");
-  await page.getByLabel("业务痛点").fill("VMware替换压力大;科研数据增长快");
-  await page.getByRole("button", { name: "新增记录" }).click();
+  const newRow = page.locator("tr.entry-new-row");
+  await newRow.locator("select").nth(0).selectOption("广东省");
+  await expect(newRow.locator("select").nth(1)).toBeEnabled();
+  await newRow.locator("select").nth(1).selectOption("深圳市");
+  await newRow.locator("input").nth(0).fill("测试录入大学");
+  await newRow.locator("input").nth(1).fill("SDDC;EDS");
+  await newRow.locator("input").nth(3).fill("超融合节点x3;EDS存储节点x2");
+  await newRow.locator("input").nth(4).fill("VMware替换压力大;科研数据增长快");
+  await newRow.getByRole("button", { name: "新增" }).click();
 
-  const recordList = page.getByRole("region", { name: "交付记录列表" });
-  await expect(recordList.getByText("测试录入大学", { exact: true })).toBeVisible();
-  await expect(recordList.getByText("超融合节点x3 / EDS存储节点x2")).toBeVisible();
-  await expect(recordList.getByText("VMware替换压力大 / 科研数据增长快")).toBeVisible();
+  const table = page.getByRole("table");
+  await expect(table.getByText("测试录入大学", { exact: true })).toBeVisible();
+  await expect(table.getByText("超融合节点x3 / EDS存储节点x2")).toBeVisible();
+  await expect(table.getByText("VMware替换压力大 / 科研数据增长快")).toBeVisible();
 
   await page.goto("/");
   await page.getByLabel("搜索高校、设备、业务痛点").fill("测试录入大学");

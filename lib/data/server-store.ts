@@ -22,12 +22,22 @@ type ServerRecordsMutator = (records: DeliveryRecord[]) => DeliveryRecord[] | Pr
 let localMutationQueue: Promise<unknown> = Promise.resolve();
 let supabaseMutationQueue: Promise<unknown> = Promise.resolve();
 
+function hasSupabaseConfig() {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+}
+
 function shouldUseSupabaseStore() {
-  return process.env.DATA_STORE === "supabase";
+  return process.env.DATA_STORE === "supabase" || hasSupabaseConfig();
 }
 
 function shouldUseBlobStore() {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN && process.env.VERCEL);
+}
+
+function assertVercelStoreConfigured() {
+  if (process.env.VERCEL && !shouldUseSupabaseStore() && !shouldUseBlobStore()) {
+    throw new Error("Vercel 数据源未配置：请设置 NEXT_PUBLIC_SUPABASE_URL 和 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
+  }
 }
 
 function isMissingFileError(error: unknown) {
@@ -57,9 +67,8 @@ function parseRecordArray(raw: string, source: string): DeliveryRecord[] {
 }
 
 function assertWritableStoreConfigured() {
-  if (process.env.VERCEL && !process.env.BLOB_READ_WRITE_TOKEN) {
-    throw new Error("Vercel Blob 未配置 BLOB_READ_WRITE_TOKEN，无法持久化交付数据");
-  }
+  if (shouldUseSupabaseStore()) return;
+  assertVercelStoreConfigured();
 }
 
 export async function readLocalDeliveryRecords(filePath = LOCAL_DATA_PATH): Promise<DeliveryRecord[]> {
@@ -185,7 +194,9 @@ async function mutateSupabaseRecords(mutator: ServerRecordsMutator) {
 
 export async function readServerRecords(): Promise<DeliveryRecord[]> {
   if (shouldUseSupabaseStore()) return readSupabaseRecords();
-  return shouldUseBlobStore() ? readBlobRecords() : readLocalDeliveryRecords();
+  if (shouldUseBlobStore()) return readBlobRecords();
+  assertVercelStoreConfigured();
+  return readLocalDeliveryRecords();
 }
 
 export async function writeServerRecords(records: DeliveryRecord[]) {
