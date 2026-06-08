@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { mockDeliveries } from "@/lib/mock/deliveries";
+import { sampleDeliveries } from "@/tests/fixtures/deliveries";
 
-describe("mockDeliveries", () => {
+describe("sampleDeliveries", () => {
   it("包含可用于全国、省份、地区和高校钻取的记录", () => {
-    expect(mockDeliveries.length).toBeGreaterThanOrEqual(16);
-    expect(new Set(mockDeliveries.map((item) => item.province)).size).toBeGreaterThanOrEqual(5);
-    expect(mockDeliveries.every((item) => item.province && item.city && item.university)).toBe(true);
+    expect(sampleDeliveries.length).toBeGreaterThanOrEqual(16);
+    expect(new Set(sampleDeliveries.map((item) => item.province)).size).toBeGreaterThanOrEqual(5);
+    expect(sampleDeliveries.every((item) => item.province && item.city && item.university)).toBe(true);
   });
 
   it("包含采购标签和产品标签，便于筛选测试", () => {
-    const purchaseTags = new Set(mockDeliveries.flatMap((item) => item.purchaseTags));
-    const productTags = new Set(mockDeliveries.flatMap((item) => item.productTags));
+    const purchaseTags = new Set(sampleDeliveries.flatMap((item) => item.purchaseTags));
+    const productTags = new Set(sampleDeliveries.flatMap((item) => item.productTags));
 
     expect(purchaseTags).toContain("VMware替换");
     expect(purchaseTags).toContain("信创");
@@ -22,7 +22,7 @@ describe("mockDeliveries", () => {
   });
 
   it("包含学校设备明细和业务痛点，便于详情页展示", () => {
-    expect(mockDeliveries.every((item) => item.equipmentDetails && item.equipmentDetails.length > 0)).toBe(true);
-    expect(mockDeliveries.every((item) => item.painPoints && item.painPoints.length > 0)).toBe(true);
+    expect(sampleDeliveries.every((item) => item.equipmentDetails && item.equipmentDetails.length > 0)).toBe(true);
+    expect(sampleDeliveries.every((item) => item.painPoints && item.painPoints.length > 0)).toBe(true);
   });
 });

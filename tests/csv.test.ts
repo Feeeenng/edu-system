@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildCsvTemplate, exportDeliveriesToCsv } from "@/lib/csv/export";
 import { parseDeliveryCsv } from "@/lib/csv/parse";
 import { CSV_COLUMNS } from "@/lib/csv/schema";
-import { mockDeliveries } from "@/lib/mock/deliveries";
+import { sampleDeliveries } from "@/tests/fixtures/deliveries";
 
 describe("csv", () => {
   it("提供中文 CSV 模板表头", () => {
@@ -11,7 +11,10 @@ describe("csv", () => {
     expect(template).toContain("省份");
     expect(template).toContain("高校名称");
     expect(template).toContain("产品标签");
+    expect(template).not.toContain("经度");
+    expect(template).not.toContain("纬度");
     expect(CSV_COLUMNS.some((column) => column.key === "province" && column.label === "省份")).toBe(true);
+    expect(CSV_COLUMNS.some((column) => column.key === "longitude" || column.key === "latitude")).toBe(false);
   });
 
   it("解析中文列名并拆分标签", () => {
@@ -41,13 +44,15 @@ describe("csv", () => {
   });
 
   it("导出交付记录为 CSV", () => {
-    const csv = exportDeliveriesToCsv(mockDeliveries.slice(0, 1));
+    const csv = exportDeliveriesToCsv(sampleDeliveries.slice(0, 1));
 
     expect(csv).toContain("省份");
     expect(csv).toContain("清华大学");
     expect(csv).toContain("FastGPT;EDS");
     expect(csv).toContain("设备明细");
     expect(csv).toContain("业务痛点");
+    expect(csv).not.toContain("经度");
+    expect(csv).not.toContain("纬度");
   });
 
   it("返回 PapaParse 格式错误", () => {
@@ -89,17 +94,17 @@ describe("csv", () => {
     expect(blankResult.records[0].resourceAmount).toBeUndefined();
   });
 
-  it("校验经纬度非法数字", () => {
+  it("导入旧 CSV 的经纬度列时忽略坐标内容", () => {
     const csv = [
       "省份,地区/城市,高校名称,经度,纬度",
       "广东省,深圳市,深圳大学,lng,lat",
     ].join("\n");
     const result = parseDeliveryCsv(csv);
 
-    expect(result.records).toHaveLength(0);
-    expect(result.errors[0]).toContain("第 2 行");
-    expect(result.errors[0]).toContain("经度");
-    expect(result.errors[0]).toContain("纬度");
+    expect(result.errors).toEqual([]);
+    expect(result.records).toHaveLength(1);
+    expect(result.records[0].longitude).toBeUndefined();
+    expect(result.records[0].latitude).toBeUndefined();
   });
 
   it("校验扩展字段 JSON 并解析合法对象", () => {
@@ -163,7 +168,7 @@ describe("csv", () => {
   });
 
   it("导出后再解析保留核心字段", () => {
-    const exported = exportDeliveriesToCsv(mockDeliveries.slice(0, 1));
+    const exported = exportDeliveriesToCsv(sampleDeliveries.slice(0, 1));
     const result = parseDeliveryCsv(exported);
 
     expect(result.errors).toEqual([]);

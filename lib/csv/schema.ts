@@ -10,8 +10,6 @@ export const CSV_COLUMNS: CsvColumn[] = [
   { key: "province", label: "省份", aliases: ["province"] },
   { key: "city", label: "地区/城市", aliases: ["城市", "地区", "city"] },
   { key: "university", label: "高校名称", aliases: ["高校", "学校", "university"] },
-  { key: "longitude", label: "经度", aliases: ["longitude", "lng"] },
-  { key: "latitude", label: "纬度", aliases: ["latitude", "lat"] },
   { key: "customerStatus", label: "客户状态", aliases: ["customerStatus"] },
   { key: "coverageStatus", label: "覆盖状态", aliases: ["coverageStatus"] },
   { key: "projectStage", label: "项目阶段", aliases: ["projectStage"] },
@@ -29,7 +27,10 @@ export const CSV_COLUMNS: CsvColumn[] = [
   { key: "extraJson", label: "扩展字段JSON", aliases: ["extraJson"] },
 ];
 
+const IGNORED_COLUMN_HEADERS = new Set(["经度", "纬度", "longitude", "lng", "latitude", "lat"]);
+
 export function resolveColumnKey(header: string): keyof DeliveryPayload | undefined {
   const normalized = header.trim();
+  if (IGNORED_COLUMN_HEADERS.has(normalized)) return undefined;
   return CSV_COLUMNS.find((column) => column.label === normalized || column.aliases.includes(normalized))?.key;
 }

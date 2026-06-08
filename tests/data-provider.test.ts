@@ -665,7 +665,7 @@ describe("server store", () => {
     }
   });
 
-  it("Blob get 返回 null 时回退 mock", async () => {
+  it("Blob get 返回 null 时回退空数据", async () => {
     const originalVercel = process.env.VERCEL;
     const originalToken = process.env.BLOB_READ_WRITE_TOKEN;
     const get = vi.fn(async () => null);
@@ -677,10 +677,9 @@ describe("server store", () => {
     try {
       process.env.VERCEL = "1";
       process.env.BLOB_READ_WRITE_TOKEN = "token";
-      const { mockDeliveries } = await import("@/lib/mock/deliveries");
       const { readServerRecords } = await import("@/lib/data/server-store");
 
-      expect(await readServerRecords()).toEqual(mockDeliveries);
+      expect(await readServerRecords()).toEqual([]);
       expect(get).toHaveBeenCalledWith("edu-system/deliveries.json", {
         access: "private",
         useCache: false,

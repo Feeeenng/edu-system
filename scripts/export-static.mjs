@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { cp, mkdir, rm, symlink } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -22,6 +22,20 @@ export function shouldExcludeFromStaticExport(source, projectRoot) {
   const segments = relative.split(path.sep);
   const [firstSegment] = segments;
   return TOP_LEVEL_EXCLUDED_NAMES.has(firstSegment) || segments.some((segment) => segment.startsWith(".env"));
+}
+
+export function getStaticHtmlAssetPrefix(htmlFile, outRoot) {
+  const htmlDir = path.dirname(htmlFile);
+  const relativeDir = path.relative(htmlDir, outRoot);
+
+  if (!relativeDir) return "./";
+
+  const normalizedPrefix = relativeDir.split(path.sep).join("/");
+  return `${normalizedPrefix}/`;
+}
+
+export function rewriteStaticHtmlAssetPaths(html, assetPrefix) {
+  return html.replaceAll("./_next/", `${assetPrefix}_next/`);
 }
 
 async function copyProjectToTemp(root, tempRoot) {
@@ -63,6 +77,33 @@ async function copyOutToRoot(root, tempRoot) {
   const rootOut = path.join(root, "out");
   await rm(rootOut, { recursive: true, force: true });
   await cp(tempOut, rootOut, { recursive: true });
+  await rewriteStaticHtmlFiles(rootOut);
+}
+
+async function rewriteStaticHtmlFiles(outRoot, currentDir = outRoot) {
+  const entries = await readdir(currentDir, { withFileTypes: true });
+
+  await Promise.all(
+    entries.map(async (entry) => {
+      const entryPath = path.join(currentDir, entry.name);
+
+      if (entry.isDirectory()) {
+        await rewriteStaticHtmlFiles(outRoot, entryPath);
+        return;
+      }
+
+      if (!entry.isFile() || !entry.name.endsWith(".html")) return;
+
+      const assetPrefix = getStaticHtmlAssetPrefix(entryPath, outRoot);
+      const html = await readFile(entryPath, "utf8");
+      // Next 只能统一生成一个 assetPrefix；静态本地打开时，嵌套路由需要按 HTML 层级改成 ../_next。
+      const rewrittenHtml = rewriteStaticHtmlAssetPaths(html, assetPrefix);
+
+      if (rewrittenHtml !== html) {
+        await writeFile(entryPath, rewrittenHtml);
+      }
+    }),
+  );
 }
 
 export async function runStaticExport(root = process.cwd()) {

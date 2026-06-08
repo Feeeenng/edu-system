@@ -1,12 +1,15 @@
 "use client";
 
-import { ArrowLeft, Boxes, Database, GraduationCap, MapPinned, Search, ServerCog } from "lucide-react";
+import { ArrowLeft, Boxes, Database, FileUp, GraduationCap, MapPinned, Search, ServerCog } from "lucide-react";
 import { gsap } from "gsap";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getUniversityDetail, groupByCity } from "@/lib/analytics/summary";
+import { ChinaCoverageMap } from "@/components/dashboard/ChinaCoverageMap";
 import { useCoverageData } from "@/components/dashboard/useCoverageData";
+import { parseDeliveryCsv } from "@/lib/csv/parse";
+import { createBrowserProvider } from "@/lib/data/browser-provider";
+import { createDeliveryRecord } from "@/lib/data/normalize";
 import type { DeliveryRecord, RegionMetric, UniversityDetail } from "@/lib/types";
-import type { CSSProperties, KeyboardEvent } from "react";
 import "./coverage-dashboard.css";
 
 const PRODUCT_ORDER = ["SDDC", "EDS", "桌面云", "FastGPT"];
@@ -14,48 +17,6 @@ const PRODUCT_ORDER = ["SDDC", "EDS", "桌面云", "FastGPT"];
 type CoverageDashboardProps = {
   initialRecords?: DeliveryRecord[];
 };
-
-type ChinaMapRegion = {
-  province: string;
-  shortName: string;
-  path: string;
-  labelX: number;
-  labelY: number;
-};
-
-const CHINA_MAP_REGIONS: ChinaMapRegion[] = [
-  { province: "新疆维吾尔自治区", shortName: "新疆", path: "M70 145 L210 100 L300 155 L285 258 L185 302 L90 248 Z", labelX: 177, labelY: 205 },
-  { province: "西藏自治区", shortName: "西藏", path: "M76 316 L195 302 L292 352 L260 448 L128 448 L54 386 Z", labelX: 175, labelY: 384 },
-  { province: "青海省", shortName: "青海", path: "M245 260 L356 246 L392 332 L300 366 L195 302 Z", labelX: 303, labelY: 315 },
-  { province: "甘肃省", shortName: "甘肃", path: "M302 156 L422 176 L440 230 L356 246 L285 258 Z", labelX: 366, labelY: 205 },
-  { province: "内蒙古自治区", shortName: "内蒙古", path: "M410 102 L690 70 L765 126 L720 186 L585 162 L450 190 L422 176 Z", labelX: 580, labelY: 128 },
-  { province: "黑龙江省", shortName: "黑龙江", path: "M705 70 L805 65 L835 136 L780 172 L724 130 Z", labelX: 780, labelY: 118 },
-  { province: "吉林省", shortName: "吉林", path: "M715 166 L786 172 L790 220 L720 218 L695 190 Z", labelX: 742, labelY: 198 },
-  { province: "辽宁省", shortName: "辽宁", path: "M650 202 L720 218 L710 270 L635 260 L610 226 Z", labelX: 664, labelY: 240 },
-  { province: "北京市", shortName: "北京", path: "M574 235 L596 238 L592 260 L570 258 Z", labelX: 584, labelY: 250 },
-  { province: "天津市", shortName: "天津", path: "M596 258 L615 264 L610 283 L590 276 Z", labelX: 604, labelY: 275 },
-  { province: "河北省", shortName: "河北", path: "M555 236 L625 226 L638 292 L595 336 L540 316 L520 266 Z", labelX: 574, labelY: 296 },
-  { province: "山东省", shortName: "山东", path: "M615 316 L706 310 L736 360 L680 402 L600 370 Z", labelX: 668, labelY: 356 },
-  { province: "山西省", shortName: "山西", path: "M475 236 L525 262 L540 316 L500 360 L455 322 L445 262 Z", labelX: 492, labelY: 300 },
-  { province: "宁夏回族自治区", shortName: "宁夏", path: "M385 226 L430 232 L420 276 L382 286 Z", labelX: 407, labelY: 258 },
-  { province: "陕西省", shortName: "陕西", path: "M405 250 L455 322 L490 396 L455 470 L390 430 L365 332 Z", labelX: 432, labelY: 385 },
-  { province: "河南省", shortName: "河南", path: "M510 346 L595 336 L620 390 L565 446 L495 406 Z", labelX: 558, labelY: 394 },
-  { province: "江苏省", shortName: "江苏", path: "M655 396 L720 396 L735 456 L680 470 L635 436 Z", labelX: 685, labelY: 430 },
-  { province: "上海市", shortName: "上海", path: "M735 456 L755 462 L752 482 L730 476 Z", labelX: 743, labelY: 472 },
-  { province: "安徽省", shortName: "安徽", path: "M590 406 L635 436 L680 470 L640 526 L575 490 L560 446 Z", labelX: 620, labelY: 474 },
-  { province: "湖北省", shortName: "湖北", path: "M490 406 L565 446 L575 490 L520 536 L455 500 L455 470 Z", labelX: 516, labelY: 486 },
-  { province: "四川省", shortName: "四川", path: "M300 366 L390 430 L455 470 L455 520 L365 556 L275 500 L260 448 Z", labelX: 365, labelY: 488 },
-  { province: "重庆市", shortName: "重庆", path: "M430 455 L470 476 L465 516 L425 520 L410 486 Z", labelX: 442, labelY: 492 },
-  { province: "贵州省", shortName: "贵州", path: "M365 556 L455 520 L500 570 L460 620 L365 610 Z", labelX: 432, labelY: 575 },
-  { province: "云南省", shortName: "云南", path: "M260 500 L365 556 L365 610 L280 626 L210 560 Z", labelX: 300, labelY: 574 },
-  { province: "湖南省", shortName: "湖南", path: "M455 505 L520 536 L535 550 L510 615 L460 620 L420 560 Z", labelX: 482, labelY: 565 },
-  { province: "江西省", shortName: "江西", path: "M575 500 L640 526 L646 590 L585 602 L535 550 Z", labelX: 590, labelY: 556 },
-  { province: "浙江省", shortName: "浙江", path: "M680 480 L730 476 L740 536 L690 570 L646 530 Z", labelX: 695, labelY: 526 },
-  { province: "福建省", shortName: "福建", path: "M646 590 L690 570 L708 630 L660 622 Z", labelX: 672, labelY: 605 },
-  { province: "广东省", shortName: "广东", path: "M585 602 L660 586 L708 630 L670 666 L585 660 L550 630 Z", labelX: 628, labelY: 636 },
-  { province: "广西壮族自治区", shortName: "广西", path: "M460 620 L500 570 L585 602 L550 630 L495 658 Z", labelX: 516, labelY: 624 },
-  { province: "海南省", shortName: "海南", path: "M606 690 L650 682 L672 708 L635 732 L592 714 Z", labelX: 630, labelY: 710 },
-];
 
 function formatTags(tags: string[]) {
   return tags.length > 0 ? tags.join(" / ") : "暂无标签";
@@ -70,6 +31,7 @@ function isUniversityDetail(value: UniversityDetail | undefined): value is Unive
 }
 
 function prefersReducedMotion() {
+  if (process.env.NODE_ENV === "test") return true;
   return (
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function" &&
@@ -79,17 +41,6 @@ function prefersReducedMotion() {
 
 function getMetricMap(metrics: RegionMetric[]) {
   return new Map(metrics.map((metric) => [metric.name, metric]));
-}
-
-function getIntensity(metric: RegionMetric | undefined, maxDeliveries: number) {
-  if (!metric || maxDeliveries <= 0) return 0;
-  return Math.max(0.18, metric.deliveryCount / maxDeliveries);
-}
-
-function getRegionFill(intensity: number, selected: boolean) {
-  if (selected) return "#f59e0b";
-  if (intensity <= 0) return "#22332d";
-  return `hsl(168 58% ${24 + intensity * 34}%)`;
 }
 
 function getUniversityCards(records: DeliveryRecord[]) {
@@ -106,11 +57,26 @@ function getUniversityCards(records: DeliveryRecord[]) {
     .filter(isUniversityDetail);
 }
 
+function readFileText(file: File) {
+  if (typeof file.text === "function") return file.text();
+
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result ?? "")));
+    reader.addEventListener("error", () => reject(reader.error ?? new Error("CSV文件读取失败")));
+    reader.readAsText(file);
+  });
+}
+
 export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {}) {
   const [selectedProvince, setSelectedProvince] = useState<string>();
-  const mapScopeRef = useRef<HTMLDivElement>(null);
+  const [selectedCity, setSelectedCity] = useState<string>();
+  const [importMessage, setImportMessage] = useState<string>();
+  const [adminHref, setAdminHref] = useState("/admin");
+  const shellRef = useRef<HTMLElement>(null);
   const caseScopeRef = useRef<HTMLDivElement>(null);
   const {
+    records,
     filteredRecords,
     productOptions,
     selectedProductTags,
@@ -121,6 +87,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     provinceMetrics,
     loading,
     error,
+    refresh,
   } = useCoverageData({ initialRecords });
 
   const orderedProducts = useMemo(() => {
@@ -130,46 +97,70 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
   }, [productOptions]);
 
   const metricMap = useMemo(() => getMetricMap(provinceMetrics), [provinceMetrics]);
-  const maxProvinceDeliveries = Math.max(1, ...provinceMetrics.map((metric) => metric.deliveryCount));
   const productLabel = selectedProductTags[0] ?? "全部产品";
   const viewRecords = useMemo(
     () =>
       selectedProvince
-        ? filteredRecords.filter((record) => record.province === selectedProvince)
+        ? filteredRecords.filter(
+            (record) => record.province === selectedProvince && (!selectedCity || record.city === selectedCity),
+          )
         : filteredRecords,
-    [filteredRecords, selectedProvince],
+    [filteredRecords, selectedCity, selectedProvince],
   );
   const cityMetrics = useMemo(
     () => (selectedProvince ? groupByCity(filteredRecords, selectedProvince) : []),
     [filteredRecords, selectedProvince],
   );
+  const cityMetricMap = useMemo(() => getMetricMap(cityMetrics), [cityMetrics]);
+  const mapMetrics = selectedProvince ? cityMetrics : provinceMetrics;
   const universityCards = useMemo(() => getUniversityCards(viewRecords), [viewRecords]);
   const selectedMetric = selectedProvince ? metricMap.get(selectedProvince) : undefined;
-  const mapHeading = selectedProvince ? `${selectedProvince}覆盖详情` : `${productLabel} 全国案例覆盖`;
+  const selectedCityMetric = selectedCity ? cityMetricMap.get(selectedCity) : undefined;
+  const isEmpty = !loading && records.length === 0;
+  const mapHeading = selectedProvince
+    ? selectedCity
+      ? `${selectedProvince} / ${selectedCity}覆盖详情`
+      : `${selectedProvince}覆盖详情`
+    : `${productLabel} 全国案例覆盖`;
 
   useEffect(() => {
-    if (!mapScopeRef.current || prefersReducedMotion()) return;
+    if (!shellRef.current || prefersReducedMotion()) return;
     const context = gsap.context(() => {
       gsap.fromTo(
-        "[data-map-region]",
-        { opacity: 0.5, y: 8 },
-        { opacity: 1, y: 0, duration: 0.48, stagger: 0.012, ease: "power3.out" },
+        "[data-hero-motion]",
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.62, stagger: 0.08, ease: "power3.out" },
       );
-    }, mapScopeRef);
+    }, shellRef);
     return () => context.revert();
-  }, [selectedProvince, selectedProductTags, keyword]);
+  }, []);
+
+  useEffect(() => {
+    if (window.location.protocol === "file:") {
+      setAdminHref("./admin/index.html");
+    }
+  }, []);
 
   useEffect(() => {
     if (!caseScopeRef.current || prefersReducedMotion()) return;
     const context = gsap.context(() => {
       gsap.fromTo(
         "[data-case-card]",
-        { opacity: 0, x: 20 },
-        { opacity: 1, x: 0, duration: 0.36, stagger: 0.035, ease: "power2.out" },
+        { opacity: 0, x: 22 },
+        { opacity: 1, x: 0, duration: 0.38, stagger: 0.035, ease: "power2.out" },
       );
     }, caseScopeRef);
     return () => context.revert();
-  }, [selectedProvince, selectedProductTags, keyword, universityCards.length]);
+  }, [selectedCity, selectedProvince, selectedProductTags, keyword, universityCards.length]);
+
+  const openProvince = useCallback((province: string) => {
+    setSelectedProvince(province);
+    setSelectedCity(undefined);
+  }, []);
+
+  const openCity = useCallback((city: string) => {
+    setSelectedCity(city);
+  }, []);
 
   const toggleProduct = (product: string) => {
     setSelectedProductTags(
@@ -178,24 +169,38 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
         : [product],
     );
     setSelectedProvince(undefined);
+    setSelectedCity(undefined);
   };
 
-  const openProvince = (province: string) => {
-    setSelectedProvince(province);
+  const backToCountry = () => {
+    setSelectedProvince(undefined);
+    setSelectedCity(undefined);
   };
 
-  const handleRegionKeyDown = (event: KeyboardEvent<SVGGElement>, province: string) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      openProvince(province);
+  const importCsv = async (file: File) => {
+    const text = await readFileText(file);
+    const result = parseDeliveryCsv(text);
+    if (result.errors.length > 0) {
+      setImportMessage(result.errors.slice(0, 2).join("；"));
+      return;
+    }
+
+    const nextRecords = result.records.map(createDeliveryRecord);
+    try {
+      await createBrowserProvider().replaceAll(nextRecords);
+      await refresh();
+      backToCountry();
+      setImportMessage(`已导入 ${nextRecords.length} 条真实记录。`);
+    } catch (importError) {
+      setImportMessage(importError instanceof Error ? importError.message : "CSV导入失败");
     }
   };
 
   return (
-    <main className="coverage-shell">
-      <section className="coverage-command" aria-label="高校案例覆盖筛选">
+    <main className="coverage-shell" ref={shellRef}>
+      <section className="coverage-command" aria-label="高校案例覆盖筛选" data-hero-motion>
         <div className="command-title">
-          <span className="coverage-eyebrow">Edu Coverage Console</span>
+          <span className="coverage-eyebrow">University Case Coverage</span>
           <h1>高校产品案例覆盖地图</h1>
         </div>
         <label className="coverage-search">
@@ -207,9 +212,30 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
             aria-label="搜索高校、设备、业务痛点"
           />
         </label>
+        <div className="coverage-actions" aria-label="数据操作">
+          <label className="file-action coverage-import-action">
+            <FileUp size={16} aria-hidden="true" />
+            导入CSV
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              aria-label="首页CSV导入"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void importCsv(file);
+                event.target.value = "";
+              }}
+            />
+          </label>
+          <a className="ghost-action" href={adminHref}>
+            进入录入页
+          </a>
+        </div>
       </section>
 
-      <section className="product-dock" aria-label="产品筛选">
+      {importMessage && <p className="import-message">{importMessage}</p>}
+
+      <section className="product-dock" aria-label="产品筛选" data-hero-motion>
         {orderedProducts.map((product) => {
           const active = selectedProductTags.includes(product);
           return (
@@ -227,7 +253,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
         })}
       </section>
 
-      <section className="metric-ribbon" aria-label="覆盖摘要">
+      <section className="metric-ribbon" aria-label="覆盖摘要" data-hero-motion>
         <article>
           <MapPinned size={18} aria-hidden="true" />
           <span>覆盖省份</span>
@@ -250,18 +276,24 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
         </article>
       </section>
 
-      <section className="coverage-workspace">
-        <div className="map-console" ref={mapScopeRef}>
+      <section className="coverage-workspace" data-hero-motion>
+        <div className="map-console">
           <div className="console-heading">
             <div>
-              <span>全国 → 省份钻取</span>
+              <span>全国省份热力覆盖</span>
               <h2>{mapHeading}</h2>
             </div>
             <div className="console-actions">
               {selectedProvince && (
-                <button className="ghost-action" type="button" onClick={() => setSelectedProvince(undefined)}>
+                <button className="ghost-action" type="button" onClick={backToCountry}>
                   <ArrowLeft size={16} aria-hidden="true" />
                   返回全国
+                </button>
+              )}
+              {selectedCity && (
+                <button className="ghost-action" type="button" onClick={() => setSelectedCity(undefined)}>
+                  <ArrowLeft size={16} aria-hidden="true" />
+                  返回省份
                 </button>
               )}
               {loading && <span className="status-pill">加载中</span>}
@@ -269,58 +301,29 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
             </div>
           </div>
 
-          <div className={selectedProvince ? "map-stage is-drilled" : "map-stage"} role="img" aria-label="全国高校案例覆盖地图">
-            <svg className="china-map" viewBox="0 0 880 760" aria-hidden="false">
-              <defs>
-                <filter id="region-glow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feDropShadow dx="0" dy="10" stdDeviation="8" floodColor="#00130f" floodOpacity="0.32" />
-                </filter>
-              </defs>
-              {CHINA_MAP_REGIONS.map((region) => {
-                const metric = metricMap.get(region.province);
-                const intensity = getIntensity(metric, maxProvinceDeliveries);
-                const selected = selectedProvince === region.province;
-                return (
-                  <g
-                    aria-label={`${region.province} ${metric?.universityCount ?? 0} 所高校 ${metric?.deliveryCount ?? 0} 个案例`}
-                    className={selected ? "map-region is-selected" : "map-region"}
-                    data-map-region
-                    key={region.province}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openProvince(region.province)}
-                    onKeyDown={(event) => handleRegionKeyDown(event, region.province)}
-                    style={
-                      {
-                        "--coverage-intensity": intensity,
-                        "--region-fill": getRegionFill(intensity, selected),
-                      } as CSSProperties
-                    }
-                  >
-                    <path className="region-shape" d={region.path} />
-                    <text className="region-label" x={region.labelX} y={region.labelY}>
-                      {region.shortName}
-                    </text>
-                    {metric && (
-                      <circle
-                        className="region-dot"
-                        cx={region.labelX + 22}
-                        cy={region.labelY - 18}
-                        r={4 + Math.min(metric.deliveryCount, 12)}
-                      />
-                    )}
-                  </g>
-                );
-              })}
-            </svg>
-
+          <div className="map-stage">
+            <ChinaCoverageMap
+              metrics={mapMetrics}
+              selectedProvince={selectedProvince}
+              selectedCity={selectedCity}
+              onSelectProvince={openProvince}
+              onSelectCity={openCity}
+            />
             {selectedProvince && (
-              <div className="province-lens" data-map-region>
-                <span>当前省份</span>
-                <strong>{selectedProvince}</strong>
+              <div className="province-lens" aria-label="当前区域">
+                <span>{selectedCity ? "当前城市" : "当前省份"}</span>
+                <strong>{selectedCity ?? selectedProvince}</strong>
                 <p>
-                  {selectedMetric?.universityCount ?? 0} 所高校 / {selectedMetric?.deliveryCount ?? 0} 个案例
+                  {(selectedCity ? selectedCityMetric?.universityCount : selectedMetric?.universityCount) ?? 0} 所高校
+                  / {(selectedCity ? selectedCityMetric?.deliveryCount : selectedMetric?.deliveryCount) ?? 0} 个案例
                 </p>
+              </div>
+            )}
+            {isEmpty && (
+              <div className="empty-state">
+                <span>等待真实数据</span>
+                <strong>请先导入真实交付数据</strong>
+                <p>支持 CSV 上传；导入后即可查看全国、省份、城市和高校覆盖情况。</p>
               </div>
             )}
           </div>
@@ -330,7 +333,12 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
               <span>地区覆盖</span>
               {cityMetrics.length > 0 ? (
                 cityMetrics.map((city) => (
-                  <button className="city-chip" key={city.name} type="button">
+                  <button
+                    className={city.name === selectedCity ? "city-chip is-active" : "city-chip"}
+                    key={city.name}
+                    type="button"
+                    onClick={() => openCity(city.name)}
+                  >
                     {city.name}
                     <small>{city.universityCount} 所</small>
                   </button>
@@ -345,12 +353,18 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
         <aside className="case-console" ref={caseScopeRef}>
           <div className="console-heading">
             <div>
-              <span>{selectedProvince ?? "全国"}高校案例</span>
+              <span>{selectedCity ?? selectedProvince ?? "全国"}高校案例</span>
               <h2>学校设备与业务痛点</h2>
             </div>
           </div>
 
           <div className="university-list">
+            {universityCards.length === 0 && (
+              <div className="empty-case-state">
+                <strong>{isEmpty ? "暂无真实数据" : "当前筛选暂无高校案例"}</strong>
+                <p>{isEmpty ? "请从首页导入 CSV，或进入录入页新增记录。" : "可调整产品、关键词或返回上一级区域。"}</p>
+              </div>
+            )}
             {universityCards.map((detail) => {
               const equipmentDetails = getUniqueItems(
                 detail.deliveries.flatMap((delivery) => delivery.equipmentDetails ?? []),

@@ -125,8 +125,6 @@ export function parseDeliveryCsv(csvText: string): CsvParseResult {
     }
 
     const rowErrors: string[] = [];
-    const longitude = parseNumberField(normalized.longitude, "经度", rowErrors);
-    const latitude = parseNumberField(normalized.latitude, "纬度", rowErrors);
     const coverageStatus = parseEnumField(normalized.coverageStatus, "覆盖状态", COVERAGE_STATUSES, rowErrors);
     const projectStage = parseEnumField(normalized.projectStage, "项目阶段", PROJECT_STAGES, rowErrors);
     const resourceAmount = parseNumberField(normalized.resourceAmount, "资源数量", rowErrors);
@@ -141,8 +139,6 @@ export function parseDeliveryCsv(csvText: string): CsvParseResult {
       province: normalized.province!.trim(),
       city: normalized.city!.trim(),
       university: normalized.university!.trim(),
-      longitude,
-      latitude,
       customerStatus: trimText(normalized.customerStatus),
       coverageStatus,
       projectStage,

@@ -2,6 +2,7 @@
 node_modules/
 .next/
 next-env.d.ts
+tsconfig.tsbuildinfo
 out/
 dist/
 test-results/
@@ -9,3 +10,4 @@ playwright-report/
 .env*
 !.env.example
 data/deliveries.local.json
+.vercel

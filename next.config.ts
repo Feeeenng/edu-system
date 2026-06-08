@@ -1,11 +1,22 @@
 import type { NextConfig } from "next";
 
-const isStaticExport = process.env.NEXT_OUTPUT_EXPORT === "true";
-
-const nextConfig: NextConfig = {
-  output: isStaticExport ? "export" : undefined,
-  trailingSlash: isStaticExport,
-  images: { unoptimized: isStaticExport },
+type CreateNextConfigOptions = {
+  staticExport: boolean;
 };
+
+export function createNextConfig({ staticExport }: CreateNextConfigOptions): NextConfig {
+  return {
+    output: staticExport ? "export" : undefined,
+    trailingSlash: staticExport,
+    assetPrefix: staticExport ? "./" : undefined,
+    images: { unoptimized: staticExport },
+    devIndicators: false,
+    allowedDevOrigins: ["127.0.0.1"],
+  };
+}
+
+const nextConfig = createNextConfig({
+  staticExport: process.env.NEXT_OUTPUT_EXPORT === "true",
+});
 
 export default nextConfig;

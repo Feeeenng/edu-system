@@ -4,12 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { filterDeliveries } from "@/lib/analytics/filter";
 import { buildCoverageSummary, groupByProvince } from "@/lib/analytics/summary";
 import { createBrowserProvider } from "@/lib/data/browser-provider";
-import { mockDeliveries } from "@/lib/mock/deliveries";
 import type { DeliveryFilters, DeliveryRecord } from "@/lib/types";
 
 type UseCoverageDataOptions = {
   initialRecords?: DeliveryRecord[];
 };
+
+const EMPTY_RECORDS: DeliveryRecord[] = [];
 
 function getProductOptions(records: DeliveryRecord[]) {
   return Array.from(new Set(records.flatMap((record) => record.productTags).filter(Boolean))).sort((a, b) =>
@@ -18,7 +19,7 @@ function getProductOptions(records: DeliveryRecord[]) {
 }
 
 function shouldUseBrowserProvider() {
-  return process.env.NEXT_PUBLIC_DATA_MODE === "browser";
+  return process.env.NEXT_PUBLIC_DATA_MODE === "browser" || typeof window !== "undefined";
 }
 
 async function fetchApiRecords() {
@@ -32,7 +33,7 @@ async function fetchApiRecords() {
 }
 
 export function useCoverageData(options: UseCoverageDataOptions = {}) {
-  const initialRecords = options.initialRecords ?? mockDeliveries;
+  const initialRecords = options.initialRecords ?? EMPTY_RECORDS;
   const [records, setRecords] = useState<DeliveryRecord[]>(initialRecords);
   const [selectedProductTags, setSelectedProductTags] = useState<string[]>([]);
   const [keyword, setKeyword] = useState("");
@@ -44,10 +45,10 @@ export function useCoverageData(options: UseCoverageDataOptions = {}) {
     setError(undefined);
 
     try {
-      const nextRecords = shouldUseBrowserProvider()
-        ? await createBrowserProvider(initialRecords).list()
-        : options.initialRecords
-          ? initialRecords
+      const nextRecords = options.initialRecords
+        ? initialRecords
+        : shouldUseBrowserProvider()
+          ? await createBrowserProvider().list()
           : await fetchApiRecords();
       setRecords(nextRecords);
     } catch (loadError) {

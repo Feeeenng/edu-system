@@ -4,7 +4,6 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createDeliveryRecord } from "@/lib/data/normalize";
 import { validateDeliveryRecordShape } from "@/lib/data/validation";
-import { mockDeliveries } from "@/lib/mock/deliveries";
 import type { DeliveryPayload, DeliveryRecord } from "@/lib/types";
 
 const LOCAL_DATA_PATH = path.join(process.cwd(), "data", "deliveries.local.json");
@@ -61,7 +60,7 @@ export async function readLocalDeliveryRecords(filePath = LOCAL_DATA_PATH): Prom
     const raw = await readFile(filePath, "utf8");
     return parseRecordArray(raw, "本地交付数据文件");
   } catch (error) {
-    if (isMissingFileError(error)) return mockDeliveries;
+    if (isMissingFileError(error)) return [];
     throw error;
   }
 }
@@ -86,7 +85,7 @@ async function streamToText(stream: ReadableStream<Uint8Array>) {
 
 async function readBlobSnapshot(): Promise<StoreSnapshot> {
   const result = await get(BLOB_KEY, { access: "private", useCache: false });
-  if (!result) return { records: mockDeliveries };
+  if (!result) return { records: [] };
 
   if (result.statusCode === 304 || !result.stream) {
     throw new Error("Vercel Blob 交付数据读取失败：未返回内容");
