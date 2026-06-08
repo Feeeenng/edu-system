@@ -543,14 +543,13 @@
 }
 
 .rank-console {
-  display: grid;
-  grid-template-rows: 1fr 1fr;
-  gap: 12px;
+  display: block;
 }
 
 .rank-card {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
   min-height: 0;
   overflow: hidden;
 }
@@ -558,20 +557,32 @@
 .rank-card header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 48px;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 62px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--dash-blue-100);
-  color: var(--dash-red);
+  color: var(--dash-blue-900);
 }
 
-.rank-card.is-low header {
-  color: var(--dash-green);
+.rank-card header > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rank-card header small {
+  color: var(--dash-slate-500);
+  font-size: 12px;
+  font-weight: 900;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .rank-card h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.2;
 }
 
@@ -592,7 +603,7 @@
 .rank-table td {
   border-right: 1px solid var(--dash-blue-100);
   border-bottom: 1px solid var(--dash-blue-100);
-  padding: 10px 8px;
+  padding: 9px 7px;
   text-align: center;
   vertical-align: middle;
 }
@@ -603,13 +614,37 @@
 }
 
 .rank-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   color: var(--dash-slate-900);
   background: #eff6ff;
   font-weight: 900;
 }
 
+.rank-table th button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+}
+
+.rank-table th button.is-active {
+  color: var(--dash-blue-800);
+}
+
+.rank-table th button:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+}
+
 .rank-table tbody tr:hover {
-  background: #f8fbff;
+  background: #f0f9ff;
 }
 
 .rank-table td:nth-child(2) {
@@ -679,8 +714,7 @@
   }
 
   .rank-console {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: none;
+    min-height: 420px;
   }
 
   .map-stage,

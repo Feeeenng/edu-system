@@ -7,6 +7,7 @@ import type {
   DefaultLabelFormatterCallbackParams,
   ECharts,
   EChartsOption,
+  PiecewiseVisualMapComponentOption,
   TooltipComponentFormatterCallbackParams,
 } from "echarts";
 import type { RegionMetric } from "@/lib/types";
@@ -116,8 +117,30 @@ function getMaxDeliveryCount(metrics: RegionMetric[]) {
   return Math.max(1, ...metrics.map((metric) => metric.deliveryCount));
 }
 
-function getMetricValue(metric: RegionMetric) {
-  return metric.coverageRate !== undefined ? Math.round(metric.coverageRate * 1000) / 10 : metric.deliveryCount;
+function getMetricValue(metric: RegionMetric, useCoverageRate: boolean) {
+  if (!useCoverageRate) return metric.deliveryCount;
+  return metric.coverageRate !== undefined ? Math.round(metric.coverageRate * 1000) / 10 : 0;
+}
+
+function buildVisualMapPieces(useCoverageRate: boolean): PiecewiseVisualMapComponentOption["pieces"] {
+  // 低数据量筛选时使用分段色阶，避免连续浅色渐变让少量覆盖区域不可见。
+  if (useCoverageRate) {
+    return [
+      { value: 0, label: "0%", color: "#d1d5db" },
+      { gt: 0, lte: 5, label: "0% - 5%", color: "#60a5fa" },
+      { gt: 5, lte: 10, label: "5% - 10%", color: "#2563eb" },
+      { gt: 10, lte: 20, label: "10% - 20%", color: "#f59e0b" },
+      { gt: 20, label: "> 20%", color: "#ef4444" },
+    ];
+  }
+
+  return [
+    { value: 0, label: "0", color: "#d1d5db" },
+    { gt: 0, lte: 1, label: "1", color: "#38bdf8" },
+    { gt: 1, lte: 3, label: "2 - 3", color: "#2563eb" },
+    { gt: 3, lte: 6, label: "4 - 6", color: "#1d4ed8" },
+    { gt: 6, label: "> 6", color: "#0f172a" },
+  ];
 }
 
 function getRegionLabel(name?: string) {
@@ -168,16 +191,19 @@ function buildMapOption(metrics: RegionMetric[], mapName: string, selectedRegion
       },
     },
     visualMap: {
+      type: "piecewise",
       show: true,
       min: 0,
       max: maxDeliveryCount,
       left: 18,
       bottom: 18,
-      text: hasRate ? ["100%", "0%"] : ["高", "低"],
-      itemWidth: 10,
-      itemHeight: 70,
+      orient: "vertical",
+      itemWidth: 13,
+      itemHeight: 13,
+      itemGap: 7,
       textStyle: { color: "#475569", fontSize: 11 },
-      inRange: { color: ["#dbeafe", "#bae6fd", "#38bdf8", "#2563eb"] },
+      pieces: buildVisualMapPieces(hasRate),
+      outOfRange: { color: "#e2e8f0" },
       calculable: false,
     },
     geo: {
@@ -195,7 +221,7 @@ function buildMapOption(metrics: RegionMetric[], mapName: string, selectedRegion
       },
       itemStyle: {
         borderColor: "#ffffff",
-        borderWidth: 1,
+        borderWidth: 1.2,
         areaColor: "#e2e8f0",
       },
       emphasis: {
@@ -229,7 +255,7 @@ function buildMapOption(metrics: RegionMetric[], mapName: string, selectedRegion
         animationDelayUpdate: (index) => index * 8,
         data: metrics.map((metric) => ({
           name: metric.name,
-          value: getMetricValue(metric),
+          value: getMetricValue(metric, hasRate),
           universityCount: metric.universityCount,
           totalUniversityCount: metric.totalUniversityCount,
           coverageRate: metric.coverageRate,

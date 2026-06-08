@@ -2,6 +2,7 @@
 
 import {
   ArrowLeft,
+  ArrowUpDown,
   Boxes,
   Database,
   FileUp,
@@ -11,7 +12,6 @@ import {
   Search,
   ServerCog,
   Target,
-  TrendingDown,
   TrendingUp,
 } from "lucide-react";
 import { gsap } from "gsap";
@@ -33,6 +33,9 @@ const PURCHASE_ORDER = ["VMware替换", "信创", "AI超融合"];
 type CoverageDashboardProps = {
   initialRecords?: DeliveryRecord[];
 };
+
+type CoverageSortKey = "coverageRate" | "universityCount" | "totalUniversityCount";
+type CoverageSortDirection = "asc" | "desc";
 
 function prefersReducedMotion() {
   if (process.env.NODE_ENV === "test") return true;
@@ -79,12 +82,22 @@ function getRankableMetrics(metrics: RegionMetric[]) {
   return metrics.filter((metric) => metric.totalUniversityCount !== undefined);
 }
 
-function getTopRegions(metrics: RegionMetric[]) {
-  return [...getRankableMetrics(metrics)].sort(compareHigherCoverage).slice(0, 5);
+function getSortValue(metric: RegionMetric, sortKey: CoverageSortKey) {
+  if (sortKey === "coverageRate") return metric.coverageRate;
+  return metric[sortKey];
 }
 
-function getBottomRegions(metrics: RegionMetric[]) {
-  return [...getRankableMetrics(metrics)].sort(compareLowerCoverage).slice(0, 5);
+function sortCoverageMetrics(metrics: RegionMetric[], sortKey: CoverageSortKey, sortDirection: CoverageSortDirection) {
+  return [...metrics].sort((a, b) => {
+    const direction = sortDirection === "desc" ? -1 : 1;
+    const aValue = getSortValue(a, sortKey);
+    const bValue = getSortValue(b, sortKey);
+    if (aValue === undefined && bValue === undefined) return compareHigherCoverage(a, b);
+    if (aValue === undefined) return 1;
+    if (bValue === undefined) return -1;
+    const valueDiff = aValue - bValue;
+    return valueDiff * direction || compareHigherCoverage(a, b);
+  });
 }
 
 function getCoverageTone(metric: RegionMetric) {
@@ -130,6 +143,10 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
   const [selectedCity, setSelectedCity] = useState<string>();
   const [importMessage, setImportMessage] = useState<string>();
   const [adminHref, setAdminHref] = useState("/admin");
+  const [coverageSort, setCoverageSort] = useState<{
+    key: CoverageSortKey;
+    direction: CoverageSortDirection;
+  }>({ key: "coverageRate", direction: "desc" });
   const shellRef = useRef<HTMLElement>(null);
   const rankScopeRef = useRef<HTMLElement>(null);
   const {
@@ -177,8 +194,12 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
   const activeCoverageRate = activeMetric?.coverageRate ?? summary.coverageRate;
   const activeRegionCount = selectedProvince ? cityMetrics.length : provinceMetrics.length;
   const activeRegionLevel = selectedProvince ? "城市" : "省份";
-  const topRegions = useMemo(() => getTopRegions(mapMetrics), [mapMetrics]);
-  const bottomRegions = useMemo(() => getBottomRegions(mapMetrics), [mapMetrics]);
+  const sortedRegions = useMemo(
+    () => sortCoverageMetrics(mapMetrics, coverageSort.key, coverageSort.direction),
+    [coverageSort.direction, coverageSort.key, mapMetrics],
+  );
+  const topRegions = useMemo(() => [...getRankableMetrics(mapMetrics)].sort(compareHigherCoverage).slice(0, 5), [mapMetrics]);
+  const bottomRegions = useMemo(() => [...getRankableMetrics(mapMetrics)].sort(compareLowerCoverage).slice(0, 5), [mapMetrics]);
   const insightItems = useMemo(
     () => buildInsightItems(topRegions, bottomRegions, activeScopeLabel, activeRegionLevel),
     [activeRegionLevel, activeScopeLabel, bottomRegions, topRegions],
@@ -218,7 +239,16 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
       );
     }, rankScopeRef);
     return () => context.revert();
-  }, [bottomRegions.length, keyword, selectedCity, selectedProductTags, selectedProvince, selectedPurchaseTags, topRegions.length]);
+  }, [
+    coverageSort.direction,
+    coverageSort.key,
+    keyword,
+    selectedCity,
+    selectedProductTags,
+    selectedProvince,
+    selectedPurchaseTags,
+    sortedRegions.length,
+  ]);
 
   const openProvince = useCallback((province: string) => {
     setSelectedProvince(province);
@@ -250,6 +280,13 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
   const backToCountry = () => {
     setSelectedProvince(undefined);
     setSelectedCity(undefined);
+  };
+
+  const changeCoverageSort = (key: CoverageSortKey) => {
+    setCoverageSort((current) => ({
+      key,
+      direction: current.key === key && current.direction === "desc" ? "asc" : "desc",
+    }));
   };
 
   const importCsv = async (file: File) => {
@@ -471,19 +508,13 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
         </div>
 
         <aside className="rank-console" ref={rankScopeRef}>
-          <RankingTable
+          <CoverageRankTable
+            activeSort={coverageSort}
             emptyText={isEmpty ? "暂无真实数据" : "暂无可排行区域"}
             icon={<TrendingUp size={18} aria-hidden="true" />}
-            metrics={topRegions}
-            title={`覆盖率最高的5个${activeRegionLevel}`}
-            tone="high"
-          />
-          <RankingTable
-            emptyText={isEmpty ? "暂无真实数据" : "暂无可排行区域"}
-            icon={<TrendingDown size={18} aria-hidden="true" />}
-            metrics={bottomRegions}
-            title={`覆盖率最低的5个${activeRegionLevel}`}
-            tone="low"
+            metrics={sortedRegions}
+            onSort={changeCoverageSort}
+            regionLevel={activeRegionLevel}
           />
         </aside>
       </section>
@@ -501,20 +532,35 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
   );
 }
 
-type RankingTableProps = {
+type CoverageRankTableProps = {
+  activeSort: {
+    key: CoverageSortKey;
+    direction: CoverageSortDirection;
+  };
   emptyText: string;
   icon: ReactNode;
   metrics: RegionMetric[];
-  title: string;
-  tone: "high" | "low";
+  onSort(key: CoverageSortKey): void;
+  regionLevel: string;
 };
 
-function RankingTable({ emptyText, icon, metrics, title, tone }: RankingTableProps) {
+const SORT_LABELS: Record<CoverageSortKey, string> = {
+  coverageRate: "覆盖率",
+  universityCount: "覆盖数",
+  totalUniversityCount: "分母",
+};
+
+function CoverageRankTable({ activeSort, emptyText, icon, metrics, onSort, regionLevel }: CoverageRankTableProps) {
+  const sortText = `${SORT_LABELS[activeSort.key]}${activeSort.direction === "desc" ? "降序" : "升序"}`;
+
   return (
-    <article className={`rank-card is-${tone}`} data-rank-card>
+    <article className="rank-card" data-rank-card>
       <header>
-        <span>{icon}</span>
-        <h2>{title}</h2>
+        <div>
+          <span>{icon}</span>
+          <h2>{regionLevel}覆盖率全量排行</h2>
+        </div>
+        <small>{metrics.length} 个{regionLevel} · 当前按{sortText}</small>
       </header>
       <div className="rank-table-wrap">
         <table className="rank-table">
@@ -522,9 +568,36 @@ function RankingTable({ emptyText, icon, metrics, title, tone }: RankingTablePro
             <tr>
               <th>排名</th>
               <th>区域</th>
-              <th>覆盖数</th>
-              <th>分母</th>
-              <th>覆盖率</th>
+              <th>
+                <button
+                  className={activeSort.key === "universityCount" ? "is-active" : undefined}
+                  type="button"
+                  onClick={() => onSort("universityCount")}
+                >
+                  覆盖数
+                  <ArrowUpDown size={13} aria-hidden="true" />
+                </button>
+              </th>
+              <th>
+                <button
+                  className={activeSort.key === "totalUniversityCount" ? "is-active" : undefined}
+                  type="button"
+                  onClick={() => onSort("totalUniversityCount")}
+                >
+                  分母
+                  <ArrowUpDown size={13} aria-hidden="true" />
+                </button>
+              </th>
+              <th>
+                <button
+                  className={activeSort.key === "coverageRate" ? "is-active" : undefined}
+                  type="button"
+                  onClick={() => onSort("coverageRate")}
+                >
+                  覆盖率
+                  <ArrowUpDown size={13} aria-hidden="true" />
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody>
