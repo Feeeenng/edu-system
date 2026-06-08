@@ -4,6 +4,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { dedupeDeliveries } from "@/lib/data/dedupe";
 import { createDeliveryRecord } from "@/lib/data/normalize";
+import { readSupabaseRecords, writeSupabaseRecords } from "@/lib/data/supabase-store";
 import { validateDeliveryRecordShape } from "@/lib/data/validation";
 import type { DeliveryPayload, DeliveryRecord } from "@/lib/types";
 
@@ -19,6 +20,11 @@ type StoreSnapshot = {
 type ServerRecordsMutator = (records: DeliveryRecord[]) => DeliveryRecord[] | Promise<DeliveryRecord[]>;
 
 let localMutationQueue: Promise<unknown> = Promise.resolve();
+let supabaseMutationQueue: Promise<unknown> = Promise.resolve();
+
+function shouldUseSupabaseStore() {
+  return process.env.DATA_STORE === "supabase";
+}
 
 function shouldUseBlobStore() {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN && process.env.VERCEL);
@@ -163,7 +169,22 @@ async function mutateLocalRecords(mutator: ServerRecordsMutator) {
   });
 }
 
+function enqueueSupabaseMutation<T>(operation: () => Promise<T>) {
+  const next = supabaseMutationQueue.then(operation, operation);
+  supabaseMutationQueue = next.catch(() => undefined);
+  return next;
+}
+
+async function mutateSupabaseRecords(mutator: ServerRecordsMutator) {
+  return enqueueSupabaseMutation(async () => {
+    const records = await readSupabaseRecords();
+    const nextRecords = await mutator(records);
+    return writeSupabaseRecords(nextRecords);
+  });
+}
+
 export async function readServerRecords(): Promise<DeliveryRecord[]> {
+  if (shouldUseSupabaseStore()) return readSupabaseRecords();
   return shouldUseBlobStore() ? readBlobRecords() : readLocalDeliveryRecords();
 }
 
@@ -172,6 +193,7 @@ export async function writeServerRecords(records: DeliveryRecord[]) {
 }
 
 export async function mutateServerRecords(mutator: ServerRecordsMutator) {
+  if (shouldUseSupabaseStore()) return mutateSupabaseRecords(mutator);
   return shouldUseBlobStore() ? mutateBlobRecords(mutator) : mutateLocalRecords(mutator);
 }
 

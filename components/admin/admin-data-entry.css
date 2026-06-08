@@ -121,6 +121,79 @@
   line-height: 1;
 }
 
+.table-toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.2fr) repeat(3, minmax(140px, 0.55fr)) repeat(4, max-content);
+  gap: 10px;
+  align-items: center;
+  padding: 0 14px;
+}
+
+.table-toolbar select,
+.table-toolbar input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #0f172a;
+  background: #ffffff;
+  outline: 0;
+}
+
+.table-toolbar select:disabled {
+  color: #94a3b8;
+  background: #f1f5f9;
+}
+
+.table-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #64748b;
+  background: #ffffff;
+}
+
+.table-search input {
+  min-height: auto;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.table-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  color: #1d4ed8;
+  background: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.table-toolbar button:disabled {
+  cursor: not-allowed;
+  color: #94a3b8;
+  border-color: #e2e8f0;
+  background: #f8fafc;
+}
+
+.table-toolbar .danger-toolbar-action {
+  color: #b91c1c;
+  border-color: #fecaca;
+  background: #fff1f2;
+}
+
 .entry-table-shell {
   max-height: min(680px, calc(100vh - 230px));
   margin: 0 14px;
@@ -132,7 +205,7 @@
 
 .entry-table {
   width: 100%;
-  min-width: 1320px;
+  min-width: 1380px;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 13px;
@@ -209,6 +282,10 @@
 
 .entry-table input:focus,
 .entry-table select:focus,
+.table-toolbar input:focus,
+.table-toolbar select:focus,
+.table-search:focus-within,
+.table-toolbar button:focus-visible,
 .admin-actions button:focus-visible,
 .admin-action-link:focus-visible,
 .file-action:focus-within,
@@ -220,6 +297,16 @@
 
 .entry-table strong {
   color: #0f172a;
+}
+
+.col-select {
+  width: 48px;
+}
+
+.col-select input,
+.entry-table td:first-child input[type="checkbox"] {
+  width: 16px;
+  min-height: 16px;
 }
 
 .col-province {
@@ -310,5 +397,9 @@
 
   .workbench-heading {
     flex-direction: column;
+  }
+
+  .table-toolbar {
+    grid-template-columns: 1fr;
   }
 }

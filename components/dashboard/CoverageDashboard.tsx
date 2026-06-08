@@ -7,7 +7,7 @@ import { getUniversityDetail, groupByCity } from "@/lib/analytics/summary";
 import { ChinaCoverageMap } from "@/components/dashboard/ChinaCoverageMap";
 import { useCoverageData } from "@/components/dashboard/useCoverageData";
 import { parseDeliveryCsv } from "@/lib/csv/parse";
-import { createBrowserProvider } from "@/lib/data/browser-provider";
+import { createClientProvider } from "@/lib/data/client-provider";
 import { dedupeDeliveries } from "@/lib/data/dedupe";
 import { createDeliveryRecord } from "@/lib/data/normalize";
 import type { DeliveryRecord, RegionMetric, UniversityDetail } from "@/lib/types";
@@ -193,7 +193,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     }
 
     try {
-      await createBrowserProvider().replaceAll(nextRecords);
+      await createClientProvider().replaceAll(nextRecords);
       await refresh();
       backToCountry();
       const duplicateCount = result.records.length - nextRecords.length;

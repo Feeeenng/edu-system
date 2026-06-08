@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminRequest } from "@/lib/api/admin-auth";
+import { dedupeDeliveries } from "@/lib/data/dedupe";
 import { createDeliveryRecord } from "@/lib/data/normalize";
 import { mutateServerRecords, readServerRecords } from "@/lib/data/server-store";
 import { validateDeliveryPayload, validateDeliveryPayloadArray } from "@/lib/data/validation";
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
 
   const payload = body.data as DeliveryPayload;
   const record = createDeliveryRecord(payload);
-  await mutateServerRecords((records) => [record, ...records]);
+  await mutateServerRecords((records) => dedupeDeliveries([record, ...records]));
   return NextResponse.json({ record }, { status: 201 });
 }
 
@@ -130,6 +131,6 @@ export async function PATCH(request: Request) {
   if (!validation.ok) return jsonError(validation.error, 400);
 
   const payloads = body.data as DeliveryPayload[];
-  const records = await mutateServerRecords(() => payloads.map(createDeliveryRecord));
+  const records = await mutateServerRecords(() => dedupeDeliveries(payloads.map(createDeliveryRecord)));
   return NextResponse.json({ records });
 }

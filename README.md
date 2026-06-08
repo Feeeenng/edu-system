@@ -7,7 +7,7 @@
 - 首页 `/`：ECharts 中国地图展示全国高校覆盖，支持按 `SDDC`、`EDS`、`桌面云`、`FastGPT` 产品标签筛选，并提供 CSV 导入入口。
 - 地图交互：支持全国 -> 省份 -> 城市下钻，点击省份、市级列表后查看对应地区覆盖和高校案例。
 - 案例详情：高校卡片聚合展示产品标签、设备清单和业务痛点。
-- 管理页 `/admin`：新增交付记录，支持 CSV 导入和 CSV 导出。
+- 管理页 `/admin`：表格化新增交付记录，支持搜索过滤、批量删除、CSV 导入、CSV 导出和 CSV 模板下载。
 - 本地闭环：管理页新增/导入会写入浏览器 `localStorage`，首页刷新后会读取同一份本地数据。
 - 动效：GSAP 页面入场和卡片动效、ECharts 地图过渡、地图扫描线与覆盖点脉冲效果。
 
@@ -53,15 +53,53 @@ localStorage: edu-system.deliveries
 
 首次打开时不会内置演示数据。管理页新增、首页导入或 CSV 导入后，会写入同一个 key；首页刷新后即可展示真实记录。这个模式适合静态导出、本地演示和 Vercel 预览。
 
-### API / Vercel 模式
+### API / Supabase / Vercel 模式
 
-项目仍保留 `/api/deliveries`、导入、导出等接口，以及本地 JSON/Vercel Blob Provider，方便后续改成服务端持久化：
+项目保留 `/api/deliveries`、导入、导出等接口，以及本地 JSON、Vercel Blob、Supabase Provider。默认 UI 使用浏览器本地模式；如果需要多端共享数据，可切到 API 模式。
 
 - 本地服务端 JSON：`data/deliveries.local.json`
 - Vercel Blob key：`edu-system/deliveries.json`
 - 写接口可通过 `ADMIN_API_TOKEN` 做保护。
 
-当前 UI 以纯前端本地模式为主，后续如果需要多用户共享数据，可把管理页写入切到 API 或 Vercel Blob。
+前端切 API：
+
+```bash
+NEXT_PUBLIC_DATA_MODE=api
+```
+
+Supabase 服务端存储：
+
+```bash
+DATA_STORE=supabase
+SUPABASE_URL=https://你的项目.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=你的 service role key
+ADMIN_API_TOKEN=管理接口访问令牌
+```
+
+在 GitHub Actions 或 Vercel 里把这些值配置到 Secrets/Environment Variables 即可。`SUPABASE_SERVICE_ROLE_KEY` 只能放服务端环境变量，不要配置成 `NEXT_PUBLIC_`。
+
+如果通过 GitHub Actions 部署，请把这些 Secrets 注入到部署环境；只放在 GitHub Secrets 里但没有传给 Vercel/运行时，Next.js 服务端读取不到这些变量。
+
+Supabase 建表 SQL：
+
+```sql
+create table if not exists public.deliveries (
+  id text primary key,
+  payload jsonb not null,
+  updated_at timestamptz not null
+);
+
+create index if not exists deliveries_updated_at_idx
+  on public.deliveries (updated_at desc);
+```
+
+如果启用了 `ADMIN_API_TOKEN`，浏览器写接口需要提供同一个 token。可以通过 `NEXT_PUBLIC_ADMIN_API_TOKEN` 注入，也可以在浏览器控制台临时设置：
+
+```js
+sessionStorage.setItem("edu-system.admin-token", "你的 ADMIN_API_TOKEN");
+```
+
+更推荐只在可信预览环境使用写接口；纯本地 HTML 使用不需要任何 token。
 
 ## CSV 字段
 

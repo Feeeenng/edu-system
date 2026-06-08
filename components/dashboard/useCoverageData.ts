@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { filterDeliveries } from "@/lib/analytics/filter";
 import { buildCoverageSummary, groupByProvince } from "@/lib/analytics/summary";
-import { createBrowserProvider } from "@/lib/data/browser-provider";
+import { createClientProvider, shouldUseApiProvider } from "@/lib/data/client-provider";
 import type { DeliveryFilters, DeliveryRecord } from "@/lib/types";
 
 type UseCoverageDataOptions = {
@@ -16,10 +16,6 @@ function getProductOptions(records: DeliveryRecord[]) {
   return Array.from(new Set(records.flatMap((record) => record.productTags).filter(Boolean))).sort((a, b) =>
     a.localeCompare(b, "zh-CN"),
   );
-}
-
-function shouldUseBrowserProvider() {
-  return process.env.NEXT_PUBLIC_DATA_MODE === "browser" || typeof window !== "undefined";
 }
 
 async function fetchApiRecords() {
@@ -47,9 +43,9 @@ export function useCoverageData(options: UseCoverageDataOptions = {}) {
     try {
       const nextRecords = options.initialRecords
         ? initialRecords
-        : shouldUseBrowserProvider()
-          ? await createBrowserProvider().list()
-          : await fetchApiRecords();
+        : shouldUseApiProvider()
+          ? await fetchApiRecords()
+          : await createClientProvider().list();
       setRecords(nextRecords);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "交付数据读取失败");
