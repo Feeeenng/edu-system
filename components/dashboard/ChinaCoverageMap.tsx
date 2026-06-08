@@ -15,6 +15,24 @@ const MAP_NAME = "edu-china";
 const REGISTERED_MAPS = new Set<string>();
 type MapJsonModule = { default: unknown };
 
+const SHORT_REGION_NAMES: Record<string, string> = {
+  北京市: "北京",
+  天津市: "天津",
+  上海市: "上海",
+  重庆市: "重庆",
+  内蒙古自治区: "内蒙古",
+  广西壮族自治区: "广西",
+  西藏自治区: "西藏",
+  宁夏回族自治区: "宁夏",
+  新疆维吾尔自治区: "新疆",
+  香港特别行政区: "香港",
+  澳门特别行政区: "澳门",
+  黑龙江省: "黑龙江",
+  广东省: "广东",
+  海南省: "海南",
+  台湾省: "台湾",
+};
+
 const PROVINCE_MAP_LOADERS: Record<string, () => Promise<MapJsonModule>> = {
   北京市: () => import("china-map-echarts/map/110000.json"),
   天津市: () => import("china-map-echarts/map/120000.json"),
@@ -101,6 +119,11 @@ function getMetricValue(metric: RegionMetric) {
   return metric.coverageRate !== undefined ? Math.round(metric.coverageRate * 1000) / 10 : metric.deliveryCount;
 }
 
+function getRegionLabel(name?: string) {
+  if (!name) return "";
+  return SHORT_REGION_NAMES[name] ?? name.replace(/省$|市$|地区$|盟$|自治州$|回族自治区$|维吾尔自治区$|壮族自治区$|特别行政区$/u, "");
+}
+
 function formatCoverage(metric: RegionMetric) {
   if (!metric.totalUniversityCount) return `${metric.universityCount} / -`;
   return `${metric.universityCount} / ${metric.totalUniversityCount}`;
@@ -118,6 +141,7 @@ function getTooltipName(params: TooltipComponentFormatterCallbackParams) {
 function buildMapOption(metrics: RegionMetric[], mapName: string, selectedRegion?: string): EChartsOption {
   const hasRate = metrics.some((metric) => metric.coverageRate !== undefined);
   const maxDeliveryCount = hasRate ? 100 : getMaxDeliveryCount(metrics);
+  const isCountryMap = mapName === MAP_NAME;
   return {
     backgroundColor: "transparent",
     animation: true,
@@ -146,26 +170,27 @@ function buildMapOption(metrics: RegionMetric[], mapName: string, selectedRegion
       show: true,
       min: 0,
       max: maxDeliveryCount,
-      left: 20,
-      bottom: 20,
+      left: 18,
+      bottom: 18,
       text: hasRate ? ["100%", "0%"] : ["高", "低"],
       itemWidth: 10,
       itemHeight: 70,
       textStyle: { color: "#475569", fontSize: 11 },
-      inRange: { color: ["#dbeafe", "#38bdf8", "#2563eb"] },
+      inRange: { color: ["#dbeafe", "#bae6fd", "#38bdf8", "#2563eb"] },
+      calculable: false,
     },
     geo: {
       map: mapName,
       roam: false,
-      zoom: mapName === MAP_NAME ? 1.14 : 1.04,
-      top: mapName === MAP_NAME ? 4 : 18,
-      bottom: mapName === MAP_NAME ? 28 : 34,
-      left: mapName === MAP_NAME ? 8 : 22,
-      right: mapName === MAP_NAME ? 8 : 22,
+      layoutCenter: isCountryMap ? ["50%", "52%"] : ["50%", "53%"],
+      layoutSize: isCountryMap ? "104%" : "94%",
+      aspectScale: isCountryMap ? 0.82 : 0.86,
       label: {
         show: true,
         color: "#334155",
-        fontSize: 11,
+        fontSize: isCountryMap ? 10 : 11,
+        formatter: (params: DefaultLabelFormatterCallbackParams) => getRegionLabel(params.name),
+        overflow: "truncate",
       },
       itemStyle: {
         borderColor: "#ffffff",
@@ -266,10 +291,18 @@ export function ChinaCoverageMap({
       chartRef.current?.resize();
       chartRef.current?.setOption(optionRef.current, true);
     };
+    const observer =
+      typeof ResizeObserver === "undefined" || !containerRef.current
+        ? undefined
+        : new ResizeObserver(() => {
+            resize();
+          });
+    observer?.observe(containerRef.current);
     window.addEventListener("resize", resize);
     return () => {
       disposed = true;
       window.removeEventListener("resize", resize);
+      observer?.disconnect();
       chartRef.current?.dispose();
       chartRef.current = null;
     };
