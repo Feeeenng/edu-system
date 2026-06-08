@@ -233,6 +233,8 @@ export function AdminDataEntry() {
       ),
     [records],
   );
+  const provinceCount = useMemo(() => new Set(records.map((record) => record.province).filter(Boolean)).size, [records]);
+  const cityCount = useMemo(() => new Set(records.map((record) => `${record.province}/${record.city}`).filter(Boolean)).size, [records]);
   const filteredRecords = useMemo(() => records.filter((record) => recordMatchesFilters(record, filters)), [filters, records]);
   const selectedFilteredIds = useMemo(
     () => filteredRecords.filter((record) => selectedIds.has(record.id)).map((record) => record.id),
@@ -647,6 +649,7 @@ export function AdminDataEntry() {
         <div>
           <span>Data Entry</span>
           <h1>高校交付数据录入</h1>
+          <p>维护高校案例、产品标签、采购标签、设备明细和业务痛点，数据会同步到服务端。</p>
         </div>
         <div className="admin-actions">
           <a className="admin-action-link" href={homeHref}>
@@ -705,11 +708,176 @@ export function AdminDataEntry() {
         </div>
       </section>
 
+      <section className="entry-overview" aria-label="录入数据概览">
+        <div>
+          <span>总记录</span>
+          <strong>{records.length}</strong>
+        </div>
+        <div>
+          <span>覆盖省份</span>
+          <strong>{provinceCount}</strong>
+        </div>
+        <div>
+          <span>覆盖城市</span>
+          <strong>{cityCount}</strong>
+        </div>
+        <div>
+          <span>当前筛选</span>
+          <strong>{filteredRecords.length}</strong>
+        </div>
+      </section>
+
+      <section className="entry-compose" aria-label="新增高校交付记录">
+        <div className="compose-heading">
+          <div>
+            <span>Quick Entry</span>
+            <h2>新增交付记录</h2>
+            <p>先填写高校和区域，再补充产品、采购、设备与业务痛点。</p>
+          </div>
+          <button
+            className="compose-submit"
+            type="button"
+            disabled={!ready || !adminUnlocked}
+            onClick={() => void createRecord()}
+          >
+            <Plus size={16} aria-hidden="true" />
+            新增记录
+          </button>
+        </div>
+
+        <div className="compose-grid">
+          <div className="compose-panel compose-panel-primary">
+            <div className="compose-panel-title">
+              <span>01</span>
+              <strong>高校与区域</strong>
+            </div>
+            <label>
+              <span>省份</span>
+              <select
+                value={entryForm.province}
+                disabled={!adminUnlocked}
+                onChange={(event) => updateField("province")(event.target.value)}
+              >
+                <option value="">选择省份</option>
+                {provinceOptions.map((province) => (
+                  <option key={province} value={province}>
+                    {province}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>城市</span>
+              <select
+                value={entryForm.city}
+                disabled={!adminUnlocked || !entryForm.province || cityLoading}
+                onChange={(event) => updateField("city")(event.target.value)}
+              >
+                <option value="">{cityLoading ? "加载城市中" : entryForm.province ? "选择城市" : "先选省份"}</option>
+                {cityOptions.map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="compose-field-wide">
+              <span>高校名称</span>
+              <input
+                value={entryForm.university}
+                disabled={!adminUnlocked}
+                placeholder="例如：深圳大学"
+                onChange={(event) => updateField("university")(event.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="compose-panel">
+            <div className="compose-panel-title">
+              <span>02</span>
+              <strong>覆盖分母</strong>
+            </div>
+            <label>
+              <span>省份高校总数</span>
+              <input
+                value={entryForm.provinceUniversityTotal}
+                disabled={!adminUnlocked}
+                inputMode="numeric"
+                placeholder="如 160"
+                onChange={(event) => updateField("provinceUniversityTotal")(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>城市高校总数</span>
+              <input
+                value={entryForm.cityUniversityTotal}
+                disabled={!adminUnlocked}
+                inputMode="numeric"
+                placeholder="如 18"
+                onChange={(event) => updateField("cityUniversityTotal")(event.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="compose-panel compose-panel-tags">
+            <div className="compose-panel-title">
+              <span>03</span>
+              <strong>标签与交付信息</strong>
+            </div>
+            <label>
+              <span>产品标签</span>
+              <input
+                value={entryForm.productTags}
+                disabled={!adminUnlocked}
+                placeholder="SDDC;EDS;桌面云"
+                onChange={(event) => updateField("productTags")(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>采购标签</span>
+              <input
+                value={entryForm.purchaseTags}
+                disabled={!adminUnlocked}
+                placeholder="VMware替换;信创;AI超融合"
+                onChange={(event) => updateField("purchaseTags")(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>设备明细</span>
+              <input
+                value={entryForm.equipmentDetails}
+                disabled={!adminUnlocked}
+                placeholder="超融合节点x3;交换机x2"
+                onChange={(event) => updateField("equipmentDetails")(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>业务痛点</span>
+              <input
+                value={entryForm.painPoints}
+                disabled={!adminUnlocked}
+                placeholder="授权成本高;数据增长快"
+                onChange={(event) => updateField("painPoints")(event.target.value)}
+              />
+            </label>
+            <label className="compose-field-wide">
+              <span>交付内容</span>
+              <input
+                value={entryForm.deliveryContent}
+                disabled={!adminUnlocked}
+                placeholder="交付范围、阶段或备注"
+                onChange={(event) => updateField("deliveryContent")(event.target.value)}
+              />
+            </label>
+          </div>
+        </div>
+      </section>
+
       <section className="entry-workbench" aria-label="高校交付数据表格录入">
         <div className="workbench-heading">
           <div>
-            <h2>表格录入</h2>
-            <p>省份和城市使用下拉选择；标签、设备和痛点支持用分号、顿号或斜杠分隔。</p>
+            <h2>数据维护表</h2>
+            <p>支持搜索、筛选、行内编辑、批量选择和删除；多值字段用分号、顿号或斜杠分隔。</p>
           </div>
           <strong>{filteredRecords.length} / {records.length} 条记录</strong>
         </div>
@@ -803,118 +971,9 @@ export function AdminDataEntry() {
               </tr>
             </thead>
             <tbody>
-              <tr className="entry-new-row">
-                <td />
-                <td>
-                  <select
-                    value={entryForm.province}
-                    disabled={!adminUnlocked}
-                    onChange={(event) => updateField("province")(event.target.value)}
-                  >
-                    <option value="">选择省份</option>
-                    {provinceOptions.map((province) => (
-                      <option key={province} value={province}>
-                        {province}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td>
-                  <select
-                    value={entryForm.city}
-                    disabled={!adminUnlocked || !entryForm.province || cityLoading}
-                    onChange={(event) => updateField("city")(event.target.value)}
-                  >
-                    <option value="">{cityLoading ? "加载城市中" : entryForm.province ? "选择城市" : "先选省份"}</option>
-                    {cityOptions.map((city) => (
-                      <option key={city} value={city}>
-                        {city}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td>
-                  <input
-                    value={entryForm.university}
-                    disabled={!adminUnlocked}
-                    placeholder="高校名称"
-                    onChange={(event) => updateField("university")(event.target.value)}
-                  />
-                </td>
-                <td>
-                  <input
-                    value={entryForm.provinceUniversityTotal}
-                    disabled={!adminUnlocked}
-                    inputMode="numeric"
-                    placeholder="如 160"
-                    onChange={(event) => updateField("provinceUniversityTotal")(event.target.value)}
-                  />
-                </td>
-                <td>
-                  <input
-                    value={entryForm.cityUniversityTotal}
-                    disabled={!adminUnlocked}
-                    inputMode="numeric"
-                    placeholder="如 18"
-                    onChange={(event) => updateField("cityUniversityTotal")(event.target.value)}
-                  />
-                </td>
-                <td>
-                  <input
-                    value={entryForm.productTags}
-                    disabled={!adminUnlocked}
-                    placeholder="SDDC;EDS"
-                    onChange={(event) => updateField("productTags")(event.target.value)}
-                  />
-                </td>
-                <td>
-                  <input
-                    value={entryForm.purchaseTags}
-                    disabled={!adminUnlocked}
-                    placeholder="VMware替换;信创"
-                    onChange={(event) => updateField("purchaseTags")(event.target.value)}
-                  />
-                </td>
-                <td>
-                  <input
-                    value={entryForm.equipmentDetails}
-                    disabled={!adminUnlocked}
-                    placeholder="超融合节点x3;交换机x2"
-                    onChange={(event) => updateField("equipmentDetails")(event.target.value)}
-                  />
-                </td>
-                <td>
-                  <input
-                    value={entryForm.painPoints}
-                    disabled={!adminUnlocked}
-                    placeholder="授权成本高;数据增长快"
-                    onChange={(event) => updateField("painPoints")(event.target.value)}
-                  />
-                </td>
-                <td>
-                  <input
-                    value={entryForm.deliveryContent}
-                    disabled={!adminUnlocked}
-                    placeholder="交付说明"
-                    onChange={(event) => updateField("deliveryContent")(event.target.value)}
-                  />
-                </td>
-                <td>
-                  <button
-                    className="table-primary-action"
-                    type="button"
-                    disabled={!ready || !adminUnlocked}
-                    onClick={() => void createRecord()}
-                  >
-                    <Plus size={15} aria-hidden="true" />
-                    新增
-                  </button>
-                </td>
-              </tr>
-
               {records.length === 0 ? (
                 <tr className="empty-row">
-                  <td colSpan={12}>暂无交付记录，可通过上方表格新增或下载模板后批量导入 CSV。</td>
+                  <td colSpan={12}>暂无交付记录，可通过上方录入控制台新增或下载模板后批量导入 CSV。</td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr className="empty-row">

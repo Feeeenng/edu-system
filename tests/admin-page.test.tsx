@@ -53,12 +53,11 @@ describe("AdminPage", () => {
     expect(screen.getByRole("heading", { name: "高校交付数据录入" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "导出CSV" })).toBeInTheDocument();
     expect(screen.getByLabelText("CSV导入")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole("button", { name: "新增" })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "新增记录" })).toBeEnabled());
 
-    const newRow = document.querySelector("tr.entry-new-row");
-    expect(newRow).not.toBeNull();
-    const selects = newRow!.querySelectorAll("select");
-    const inputs = newRow!.querySelectorAll("input");
+    const composePanel = screen.getByLabelText("新增高校交付记录");
+    const selects = composePanel.querySelectorAll("select");
+    const inputs = composePanel.querySelectorAll("input");
 
     fireEvent.change(selects[0], { target: { value: "广东省" } });
     await waitFor(() => expect(selects[1]).toBeEnabled());
@@ -70,7 +69,7 @@ describe("AdminPage", () => {
     fireEvent.change(inputs[4], { target: { value: "信创" } });
     fireEvent.change(inputs[5], { target: { value: "超融合节点x3;EDS存储节点x2" } });
     fireEvent.change(inputs[6], { target: { value: "VMware替换压力大;科研数据增长快" } });
-    fireEvent.click(screen.getByRole("button", { name: "新增" }));
+    fireEvent.click(screen.getByRole("button", { name: "新增记录" }));
 
     const table = screen.getByRole("table");
     await waitFor(() => expect(table).toHaveTextContent("测试录入大学"));
