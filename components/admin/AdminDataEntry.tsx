@@ -4,6 +4,7 @@ import { ArrowLeft, Download, FileUp, Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { exportDeliveriesToCsv } from "@/lib/csv/export";
 import { parseDeliveryCsv } from "@/lib/csv/parse";
+import { dedupeDeliveries, getDeliveryBusinessKey } from "@/lib/data/dedupe";
 import { createDeliveryRecord } from "@/lib/data/normalize";
 import { createBrowserProvider } from "@/lib/data/browser-provider";
 import type { DeliveryPayload, DeliveryRecord } from "@/lib/types";
@@ -122,12 +123,24 @@ export function AdminDataEntry() {
       return;
     }
 
-    const nextRecords = result.records.map(createDeliveryRecord);
+    const nextRecords = dedupeDeliveries(result.records.map(createDeliveryRecord));
+    if (nextRecords.length === 0) {
+      setMessage("CSV中没有可导入的记录，已保留现有数据。");
+      return;
+    }
+
     try {
       const currentRecords = await providerRef.current.list();
-      const mergedRecords = await providerRef.current.replaceAll([...nextRecords, ...currentRecords]);
+      const currentKeys = new Set(currentRecords.map(getDeliveryBusinessKey));
+      const addedCount = nextRecords.filter((record) => !currentKeys.has(getDeliveryBusinessKey(record))).length;
+      const mergedRecords = await providerRef.current.replaceAll(dedupeDeliveries([...nextRecords, ...currentRecords]));
       setRecords(mergedRecords);
-      setMessage(`已导入 ${nextRecords.length} 条记录，首页刷新后可查看。`);
+      const duplicateCount = result.records.length - addedCount;
+      setMessage(
+        duplicateCount > 0
+          ? `已新增 ${addedCount} 条记录，自动忽略 ${duplicateCount} 条重复记录。`
+          : `已导入 ${addedCount} 条记录，首页刷新后可查看。`,
+      );
     } catch (importError) {
       setMessage(importError instanceof Error ? importError.message : "CSV导入失败");
     }

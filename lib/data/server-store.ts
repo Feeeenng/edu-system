@@ -2,6 +2,7 @@ import "server-only";
 import { BlobPreconditionFailedError, get, put } from "@vercel/blob";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { dedupeDeliveries } from "@/lib/data/dedupe";
 import { createDeliveryRecord } from "@/lib/data/normalize";
 import { validateDeliveryRecordShape } from "@/lib/data/validation";
 import type { DeliveryPayload, DeliveryRecord } from "@/lib/types";
@@ -46,7 +47,7 @@ function parseRecordArray(raw: string, source: string): DeliveryRecord[] {
     }
   }
 
-  return parsed as DeliveryRecord[];
+  return dedupeDeliveries(parsed as DeliveryRecord[]);
 }
 
 function assertWritableStoreConfigured() {
@@ -175,6 +176,6 @@ export async function mutateServerRecords(mutator: ServerRecordsMutator) {
 }
 
 export async function replaceServerRecords(payloads: DeliveryPayload[]) {
-  const records = payloads.map(createDeliveryRecord);
+  const records = dedupeDeliveries(payloads.map(createDeliveryRecord));
   return mutateServerRecords(() => records);
 }

@@ -8,6 +8,7 @@ import { ChinaCoverageMap } from "@/components/dashboard/ChinaCoverageMap";
 import { useCoverageData } from "@/components/dashboard/useCoverageData";
 import { parseDeliveryCsv } from "@/lib/csv/parse";
 import { createBrowserProvider } from "@/lib/data/browser-provider";
+import { dedupeDeliveries } from "@/lib/data/dedupe";
 import { createDeliveryRecord } from "@/lib/data/normalize";
 import type { DeliveryRecord, RegionMetric, UniversityDetail } from "@/lib/types";
 import "./coverage-dashboard.css";
@@ -185,7 +186,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
       return;
     }
 
-    const nextRecords = result.records.map(createDeliveryRecord);
+    const nextRecords = dedupeDeliveries(result.records.map(createDeliveryRecord));
     if (nextRecords.length === 0) {
       setImportMessage("CSV中没有可导入的记录，已保留现有数据。");
       return;
@@ -195,7 +196,12 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
       await createBrowserProvider().replaceAll(nextRecords);
       await refresh();
       backToCountry();
-      setImportMessage(`已导入 ${nextRecords.length} 条真实记录。`);
+      const duplicateCount = result.records.length - nextRecords.length;
+      setImportMessage(
+        duplicateCount > 0
+          ? `已导入 ${nextRecords.length} 条真实记录，自动忽略 ${duplicateCount} 条重复记录。`
+          : `已导入 ${nextRecords.length} 条真实记录。`,
+      );
     } catch (importError) {
       setImportMessage(importError instanceof Error ? importError.message : "CSV导入失败");
     }

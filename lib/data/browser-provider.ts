@@ -1,5 +1,6 @@
 "use client";
 
+import { dedupeDeliveries } from "@/lib/data/dedupe";
 import { createDeliveryRecord } from "@/lib/data/normalize";
 import type { DeliveryDataProvider } from "@/lib/data/provider";
 import { validateDeliveryRecordShape } from "@/lib/data/validation";
@@ -27,7 +28,7 @@ function readRecords(): BrowserReadResult {
       return { status: "corrupt", records: [] };
     }
 
-    return { status: "valid", records: parsed };
+    return { status: "valid", records: dedupeDeliveries(parsed as DeliveryRecord[]) };
   } catch {
     return { status: "corrupt", records: [] };
   }
@@ -53,22 +54,24 @@ export function createBrowserProvider(seed: DeliveryRecord[] = []): DeliveryData
         return seed;
       }
       if (current.status === "missing" && seed.length > 0) {
-        writeRecords(seed);
-        return seed;
+        const records = dedupeDeliveries(seed);
+        writeRecords(records);
+        return records;
       }
       return current.records;
     },
     async replaceAll(payloads) {
       readWritableRecords();
-      const records = payloads.map(createDeliveryRecord);
+      const records = dedupeDeliveries(payloads.map(createDeliveryRecord));
       writeRecords(records);
       return records;
     },
     async create(payload) {
       const records = readWritableRecords();
       const record = createDeliveryRecord(payload);
-      writeRecords([record, ...records]);
-      return record;
+      const nextRecords = dedupeDeliveries([record, ...records]);
+      writeRecords(nextRecords);
+      return nextRecords[0];
     },
     async update(id: string, payload: DeliveryPayload) {
       const records = readWritableRecords();
