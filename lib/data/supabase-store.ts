@@ -9,6 +9,13 @@ type SupabaseDeliveryRow = {
   updated_at: string;
 };
 
+type SupabaseErrorPayload = {
+  code?: string;
+  message?: string;
+  details?: string | null;
+  hint?: string | null;
+};
+
 function getSupabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const token = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -38,6 +45,17 @@ async function requestSupabase(path: string, init: RequestInit = {}) {
 
   if (!response.ok) {
     const detail = await response.text();
+    let payload: SupabaseErrorPayload | undefined;
+    try {
+      payload = detail ? (JSON.parse(detail) as SupabaseErrorPayload) : undefined;
+    } catch {
+      payload = undefined;
+    }
+
+    if (payload?.code === "PGRST205") {
+      throw new Error("Supabase 数据表 public.deliveries 不存在或 schema cache 未刷新，请先执行 supabase/schema.sql 建表");
+    }
+
     throw new Error(`Supabase 请求失败：HTTP ${response.status}${detail ? ` - ${detail}` : ""}`);
   }
 

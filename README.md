@@ -65,6 +65,8 @@ ADMIN_API_TOKEN=管理接口访问令牌
 
 如果通过 Vercel Git 集成部署，请直接在 Vercel Project Settings -> Environment Variables 中配置同名变量。
 
+首次接入 Supabase 时，需要先在 Supabase SQL Editor 里执行 [supabase/schema.sql](/root/zjf/edu-system/supabase/schema.sql)。如果接口返回 `PGRST205` 或提示找不到 `public.deliveries`，说明这张表还没有创建，或刚建完后 Supabase REST schema cache 还没刷新。
+
 Supabase 建表 SQL：
 
 ```sql
