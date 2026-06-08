@@ -544,14 +544,82 @@
 
 .rank-console {
   display: grid;
-  grid-template-rows: minmax(250px, 0.46fr) minmax(320px, 0.54fr);
-  gap: 12px;
+  grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(147, 197, 253, 0.9);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.93);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.055);
+}
+
+.right-panel-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--dash-blue-100);
+  background: linear-gradient(180deg, rgba(239, 246, 255, 0.96), rgba(255, 255, 255, 0.92));
+}
+
+.right-panel-tabs button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--dash-slate-700);
+  background: rgba(255, 255, 255, 0.72);
+  font-weight: 900;
+}
+
+.right-panel-tabs button:hover {
+  border-color: var(--dash-blue-200);
+  color: var(--dash-blue-800);
+  background: #ffffff;
+}
+
+.right-panel-tabs button.is-active {
+  border-color: var(--dash-blue-800);
+  color: #ffffff;
+  background: var(--dash-blue-800);
+  box-shadow: 0 12px 26px rgba(30, 64, 175, 0.2);
+}
+
+.right-panel-tabs button:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+}
+
+.right-panel-tabs strong {
+  min-width: 30px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: var(--dash-blue-800);
+  background: #dbeafe;
+  font-family: "Fira Code", "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+  text-align: center;
+}
+
+.right-panel-tabs button.is-active strong {
+  color: var(--dash-blue-950);
+  background: #ffffff;
 }
 
 .rank-panel,
 .case-panel {
+  display: none;
   min-height: 0;
+}
+
+.rank-panel.is-active,
+.case-panel.is-active {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .rank-card {
@@ -560,6 +628,10 @@
   height: 100%;
   min-height: 0;
   overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .rank-card header {
@@ -682,13 +754,8 @@
 }
 
 .case-panel {
-  display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
-  border: 1px solid rgba(147, 197, 253, 0.9);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.93);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.055);
 }
 
 .case-heading {
@@ -874,7 +941,6 @@
   }
 
   .rank-console {
-    grid-template-rows: minmax(260px, 360px) minmax(320px, 520px);
     min-height: 420px;
   }
 
@@ -898,13 +964,12 @@
 
   .coverage-command,
   .overview-row,
-  .metric-ribbon,
-  .rank-console {
+  .metric-ribbon {
     grid-template-columns: 1fr;
   }
 
   .rank-console {
-    grid-template-rows: minmax(260px, 340px) minmax(320px, 500px);
+    min-height: 500px;
   }
 
   .command-title {

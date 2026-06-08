@@ -36,6 +36,7 @@ type CoverageDashboardProps = {
 
 type CoverageSortKey = "coverageRate" | "universityCount" | "totalUniversityCount";
 type CoverageSortDirection = "asc" | "desc";
+type RightPanelTab = "coverage" | "cases";
 
 function formatTags(tags: string[]) {
   return tags.length > 0 ? tags.join(" / ") : "暂无标签";
@@ -173,6 +174,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     key: CoverageSortKey;
     direction: CoverageSortDirection;
   }>({ key: "coverageRate", direction: "desc" });
+  const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>("coverage");
   const shellRef = useRef<HTMLElement>(null);
   const rankScopeRef = useRef<HTMLElement>(null);
   const {
@@ -290,10 +292,12 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
   const openProvince = useCallback((province: string) => {
     setSelectedProvince(province);
     setSelectedCity(undefined);
+    setRightPanelTab("cases");
   }, []);
 
   const openCity = useCallback((city: string) => {
     setSelectedCity(city);
+    setRightPanelTab("cases");
   }, []);
 
   const toggleProduct = (product: string) => {
@@ -305,6 +309,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     setSelectedPurchaseTags([]);
     setSelectedProvince(undefined);
     setSelectedCity(undefined);
+    setRightPanelTab("coverage");
   };
 
   const togglePurchase = (tag: string) => {
@@ -312,11 +317,13 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     setSelectedProductTags([]);
     setSelectedProvince(undefined);
     setSelectedCity(undefined);
+    setRightPanelTab("coverage");
   };
 
   const backToCountry = () => {
     setSelectedProvince(undefined);
     setSelectedCity(undefined);
+    setRightPanelTab("coverage");
   };
 
   const changeCoverageSort = (key: CoverageSortKey) => {
@@ -545,7 +552,39 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
         </div>
 
         <aside className="rank-console" ref={rankScopeRef}>
-          <section className="rank-panel" aria-label={`${activeRegionLevel}覆盖率全量排行`}>
+          <div className="right-panel-tabs" role="tablist" aria-label="右侧数据切换">
+            <button
+              aria-controls="coverage-rank-panel"
+              aria-selected={rightPanelTab === "coverage"}
+              className={rightPanelTab === "coverage" ? "is-active" : undefined}
+              id="coverage-rank-tab"
+              role="tab"
+              type="button"
+              onClick={() => setRightPanelTab("coverage")}
+            >
+              <span>区域覆盖率</span>
+              <strong>{sortedRegions.length}</strong>
+            </button>
+            <button
+              aria-controls="university-case-panel"
+              aria-selected={rightPanelTab === "cases"}
+              className={rightPanelTab === "cases" ? "is-active" : undefined}
+              id="university-case-tab"
+              role="tab"
+              type="button"
+              onClick={() => setRightPanelTab("cases")}
+            >
+              <span>高校案例</span>
+              <strong>{universityCards.length}</strong>
+            </button>
+          </div>
+          <section
+            aria-labelledby="coverage-rank-tab"
+            className={rightPanelTab === "coverage" ? "rank-panel is-active" : "rank-panel"}
+            hidden={rightPanelTab !== "coverage"}
+            id="coverage-rank-panel"
+            role="tabpanel"
+          >
             <CoverageRankTable
               activeSort={coverageSort}
               emptyText={isEmpty ? "暂无真实数据" : "暂无可排行区域"}
@@ -555,25 +594,18 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
               regionLevel={activeRegionLevel}
             />
           </section>
-          <section className="case-panel" aria-label={`${selectedCity ?? selectedProvince ?? "全国"}高校案例`}>
-            <div className="case-heading">
-              <div>
-                <span>{selectedCity ?? selectedProvince ?? "全国"}高校案例</span>
-                <h2>学校设备与业务痛点</h2>
-              </div>
-              <small>{universityCards.length} 所高校</small>
-            </div>
-            <div className="university-list">
-              {universityCards.length === 0 && (
-                <div className="empty-case-state">
-                  <strong>{isEmpty ? "暂无真实数据" : "当前筛选暂无高校案例"}</strong>
-                  <p>{isEmpty ? "请从首页导入 CSV，或进入录入页新增记录。" : "可调整产品、关键词或返回上一级区域。"}</p>
-                </div>
-              )}
-              {universityCards.map((detail) => (
-                <UniversityCaseCard detail={detail} key={`${detail.province}-${detail.city}-${detail.university}`} />
-              ))}
-            </div>
+          <section
+            aria-labelledby="university-case-tab"
+            className={rightPanelTab === "cases" ? "case-panel is-active" : "case-panel"}
+            hidden={rightPanelTab !== "cases"}
+            id="university-case-panel"
+            role="tabpanel"
+          >
+            <UniversityCasePanel
+              isEmpty={isEmpty}
+              scopeLabel={selectedCity ?? selectedProvince ?? "全国"}
+              universityCards={universityCards}
+            />
           </section>
         </aside>
       </section>
@@ -612,6 +644,37 @@ const SORT_LABELS: Record<CoverageSortKey, string> = {
 type UniversityCaseCardProps = {
   detail: UniversityDetail;
 };
+
+type UniversityCasePanelProps = {
+  isEmpty: boolean;
+  scopeLabel: string;
+  universityCards: UniversityDetail[];
+};
+
+function UniversityCasePanel({ isEmpty, scopeLabel, universityCards }: UniversityCasePanelProps) {
+  return (
+    <>
+      <div className="case-heading">
+        <div>
+          <span>{scopeLabel}高校案例</span>
+          <h2>学校设备与业务痛点</h2>
+        </div>
+        <small>{universityCards.length} 所高校</small>
+      </div>
+      <div className="university-list">
+        {universityCards.length === 0 && (
+          <div className="empty-case-state">
+            <strong>{isEmpty ? "暂无真实数据" : "当前筛选暂无高校案例"}</strong>
+            <p>{isEmpty ? "请从首页导入 CSV，或进入录入页新增记录。" : "可调整产品、关键词或返回上一级区域。"}</p>
+          </div>
+        )}
+        {universityCards.map((detail) => (
+          <UniversityCaseCard detail={detail} key={`${detail.province}-${detail.city}-${detail.university}`} />
+        ))}
+      </div>
+    </>
+  );
+}
 
 function UniversityCaseCard({ detail }: UniversityCaseCardProps) {
   const equipmentDetails = getUniqueItems(detail.deliveries.flatMap((delivery) => delivery.equipmentDetails ?? []));
