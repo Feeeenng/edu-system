@@ -2,6 +2,27 @@ import Papa from "papaparse";
 import { CSV_COLUMNS } from "@/lib/csv/schema";
 import type { DeliveryPayload, DeliveryRecord } from "@/lib/types";
 
+const CSV_TEMPLATE_SAMPLE: DeliveryPayload = {
+  province: "广东省",
+  city: "深圳市",
+  university: "深圳大学",
+  customerStatus: "重点客户",
+  coverageStatus: "已覆盖",
+  projectStage: "交付",
+  deliveryDate: "2026-06-08",
+  owner: "张三",
+  purchaseTags: ["VMware替换", "信创"],
+  productTags: ["SDDC", "EDS"],
+  resourceType: "超融合资源",
+  resourceAmount: 12,
+  resourceUnit: "节点",
+  deliveryContent: "SDDC资源池建设与EDS存储扩容",
+  equipmentDetails: ["超融合节点x6", "EDS存储节点x3", "万兆交换机x2"],
+  painPoints: ["VMware授权成本高", "科研数据增长快"],
+  notes: "示例行可删除后再批量填写",
+  extraJson: { priority: "high" },
+};
+
 function formatValue(record: DeliveryPayload | DeliveryRecord, key: keyof DeliveryPayload) {
   const value = record[key];
   if (Array.isArray(value)) return value.join(";");
@@ -12,7 +33,7 @@ function formatValue(record: DeliveryPayload | DeliveryRecord, key: keyof Delive
 export function buildCsvTemplate(): string {
   return Papa.unparse({
     fields: CSV_COLUMNS.map((column) => column.label),
-    data: [],
+    data: [CSV_COLUMNS.map((column) => formatValue(CSV_TEMPLATE_SAMPLE, column.key))],
   });
 }
 
