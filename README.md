@@ -59,7 +59,7 @@ DATA_STORE=supabase
 ADMIN_API_TOKEN=管理接口访问令牌
 ```
 
-`ADMIN_API_TOKEN` 用来保护新增、删除、批量替换和导出等管理接口。部署到 Vercel 或生产环境时建议配置；如果配置了它，浏览器写接口需要带同一个 token。
+`ADMIN_API_TOKEN` 用来保护新增、删除、批量替换和导出等管理接口。部署到 Vercel 或生产环境时必须配置；进入 `/admin` 页面后输入这串密码，服务端验证通过后会写入 HttpOnly Cookie，后续管理操作会自动带上同域会话。
 
 在 GitHub Actions 里使用 GitHub Variables 时，需要把 `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` 传给 Vercel 部署命令或 Vercel 项目环境变量；只创建 GitHub Variables 但没有注入运行时，Next.js 服务端读取不到这些值。
 
@@ -80,15 +80,7 @@ create index if not exists deliveries_updated_at_idx
   on public.deliveries (updated_at desc);
 ```
 
-因为当前按你的变量使用 `publishable key`，Supabase 侧需要给 `anon` 角色配置 `deliveries` 表的读写策略。管理入口仍由本项目的 `ADMIN_API_TOKEN` 保护，浏览器不会直接请求 Supabase。
-
-如果启用了 `ADMIN_API_TOKEN`，可以通过 `NEXT_PUBLIC_ADMIN_API_TOKEN` 注入，也可以在浏览器控制台临时设置：
-
-```js
-sessionStorage.setItem("edu-system.admin-token", "你的 ADMIN_API_TOKEN");
-```
-
-更推荐只在可信预览环境使用 `NEXT_PUBLIC_ADMIN_API_TOKEN`；公开生产环境不要把管理 token 暴露给普通访客。
+因为当前按你的变量使用 `publishable key`，Supabase 侧需要给 `anon` 角色配置 `deliveries` 表的读写策略。管理入口仍由本项目的 `ADMIN_API_TOKEN` 保护，浏览器不会直接请求 Supabase，也不需要把管理密码暴露给浏览器或写入浏览器存储。
 
 ## CSV 字段
 

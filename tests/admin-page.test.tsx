@@ -24,7 +24,15 @@ describe("AdminPage", () => {
 
   it("提供高校交付数据录入表单并能新增记录到列表", async () => {
     let records: DeliveryRecord[] = [];
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes("/api/admin/session")) {
+        return new Response(JSON.stringify({ configured: true, unlocked: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
       if (!init?.method || init.method === "GET") {
         return new Response(JSON.stringify({ records }), { status: 200, headers: { "Content-Type": "application/json" } });
       }

@@ -74,6 +74,114 @@
   transform: translateY(-1px);
 }
 
+.admin-actions button:disabled,
+.file-action.is-disabled {
+  cursor: not-allowed;
+  color: #94a3b8;
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  box-shadow: none;
+}
+
+.admin-auth-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background:
+    radial-gradient(circle at 52% 38%, rgba(37, 99, 235, 0.22), transparent 28%),
+    rgba(15, 23, 42, 0.52);
+  backdrop-filter: blur(10px);
+}
+
+.admin-auth-card {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 14px;
+  border: 1px solid rgba(191, 219, 254, 0.9);
+  border-radius: 8px;
+  padding: 24px;
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
+}
+
+.admin-auth-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.admin-auth-card span {
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-auth-card h2 {
+  margin: 6px 0 0;
+  font-size: 26px;
+  line-height: 1.1;
+}
+
+.admin-auth-card p {
+  margin: 8px 0 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.admin-auth-form {
+  display: grid;
+  grid-template-columns: 1fr max-content;
+  gap: 10px;
+}
+
+.admin-auth-form input {
+  min-height: 42px;
+  min-width: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0 12px;
+  outline: 0;
+}
+
+.admin-auth-form input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.admin-auth-form button {
+  min-height: 42px;
+  border: 1px solid #1d4ed8;
+  border-radius: 8px;
+  padding: 0 16px;
+  color: #ffffff;
+  background: #1d4ed8;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.admin-auth-form button:disabled {
+  cursor: not-allowed;
+  border-color: #93c5fd;
+  background: #93c5fd;
+}
+
+.admin-auth-message {
+  margin: 0;
+  color: #64748b;
+}
+
 .file-action {
   position: relative;
   overflow: hidden;
@@ -359,6 +467,14 @@
   background: #93c5fd;
 }
 
+.table-danger-action:disabled,
+.table-plain-action:disabled {
+  cursor: not-allowed;
+  color: #94a3b8;
+  border-color: #e2e8f0;
+  background: #f8fafc;
+}
+
 .table-danger-action {
   border: 1px solid #fecaca;
   color: #b91c1c;
@@ -420,6 +536,10 @@
   }
 
   .table-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-auth-form {
     grid-template-columns: 1fr;
   }
 }

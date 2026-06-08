@@ -1,6 +1,19 @@
 "use client";
 
-import { ArrowLeft, Download, FileDown, FileUp, Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Download,
+  FileDown,
+  FileUp,
+  LockKeyhole,
+  LogOut,
+  Pencil,
+  Plus,
+  Save,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildCsvTemplate, exportDeliveriesToCsv } from "@/lib/csv/export";
 import { parseDeliveryCsv } from "@/lib/csv/parse";
@@ -31,6 +44,12 @@ type FilterState = {
   province: string;
   city: string;
   product: string;
+};
+
+type AdminSessionPayload = {
+  configured?: boolean;
+  unlocked?: boolean;
+  error?: string;
 };
 
 const EMPTY_ENTRY_FORM: EntryFormState = {
@@ -168,6 +187,24 @@ function downloadCsvTemplate() {
   downloadText("高校交付记录导入模板.csv", buildCsvTemplate());
 }
 
+async function readAdminSessionPayload(response: Response): Promise<AdminSessionPayload> {
+  const text = await response.text();
+  let payload: AdminSessionPayload = {};
+  try {
+    payload = text ? (JSON.parse(text) as AdminSessionPayload) : {};
+  } catch {
+    if (!response.ok) {
+      throw new Error(`管理密码验证失败：HTTP ${response.status}`);
+    }
+    throw new Error("管理密码接口返回格式错误");
+  }
+
+  if (!response.ok) {
+    throw new Error(payload.error ?? `管理密码验证失败：HTTP ${response.status}`);
+  }
+  return payload;
+}
+
 export function AdminDataEntry() {
   const [records, setRecords] = useState<DeliveryRecord[]>([]);
   const [entryForm, setEntryForm] = useState<EntryFormState>(EMPTY_ENTRY_FORM);
@@ -180,6 +217,11 @@ export function AdminDataEntry() {
   const [cityLoading, setCityLoading] = useState(false);
   const [ready, setReady] = useState(false);
   const [message, setMessage] = useState("当前使用服务端数据模式，录入、导入和删除都会写入 /api/deliveries。");
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [authDialogOpen, setAuthDialogOpen] = useState(true);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authMessage, setAuthMessage] = useState("请输入管理密码，解锁录入、导入、导出和删除操作。");
   const [homeHref, setHomeHref] = useState("/");
   const providerRef = useRef<ReturnType<typeof createClientProvider> | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -203,10 +245,45 @@ export function AdminDataEntry() {
     return providerRef.current;
   }, []);
 
+  const requireAdminUnlocked = useCallback(() => {
+    if (adminUnlocked) return true;
+    setAuthDialogOpen(true);
+    setAuthMessage("请先输入管理密码。");
+    setMessage("请先输入管理密码，再进行录入或维护。");
+    return false;
+  }, [adminUnlocked]);
+
   useEffect(() => {
     if (window.location.protocol === "file:") {
       setHomeHref("../index.html");
     }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    void fetch("/api/admin/session", {
+      cache: "no-store",
+      credentials: "same-origin",
+    })
+      .then(readAdminSessionPayload)
+      .then((payload) => {
+        if (!active) return;
+        setAdminUnlocked(Boolean(payload.unlocked));
+        setAuthDialogOpen(!payload.unlocked);
+        if (payload.unlocked) {
+          setAuthMessage(payload.configured ? "管理权限已验证。" : "本地开发未配置管理密码，已自动解锁。");
+        }
+      })
+      .catch((authError) => {
+        if (!active) return;
+        setAuthDialogOpen(true);
+        setAuthMessage(authError instanceof Error ? authError.message : "管理密码状态读取失败，请重新输入。");
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -319,7 +396,58 @@ export function AdminDataEntry() {
     });
   };
 
+  const unlockAdmin = async () => {
+    if (!adminPassword) {
+      setAuthMessage("请输入管理密码。");
+      return;
+    }
+
+    try {
+      setAuthLoading(true);
+      const payload = await readAdminSessionPayload(
+        await fetch("/api/admin/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ token: adminPassword }),
+        }),
+      );
+
+      if (!payload.unlocked) {
+        setAuthMessage("密码验证失败，请重新输入。");
+        return;
+      }
+
+      setAdminUnlocked(true);
+      setAuthDialogOpen(false);
+      setAdminPassword("");
+      setAuthMessage("管理权限已验证。");
+      setMessage("管理权限已验证，可以录入和维护数据。");
+    } catch (authError) {
+      setAuthMessage(authError instanceof Error ? authError.message : "管理密码验证失败");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const logoutAdmin = async () => {
+    try {
+      await fetch("/api/admin/session", {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+    } finally {
+      setAdminUnlocked(false);
+      setAuthDialogOpen(true);
+      setAdminPassword("");
+      setAuthMessage("已退出管理模式，请重新输入管理密码。");
+      setMessage("已退出管理模式，录入和维护操作已锁定。");
+    }
+  };
+
   const createRecord = async () => {
+    if (!requireAdminUnlocked()) return;
+
     const validationMessage = validateForm(entryForm);
     if (validationMessage) {
       setMessage(validationMessage);
@@ -338,6 +466,8 @@ export function AdminDataEntry() {
   };
 
   const startEditRecord = async (record: DeliveryRecord) => {
+    if (!requireAdminUnlocked()) return;
+
     setEditingForms((current) => ({
       ...current,
       [record.id]: buildFormFromRecord(record),
@@ -379,6 +509,8 @@ export function AdminDataEntry() {
   };
 
   const saveRecord = async (record: DeliveryRecord) => {
+    if (!requireAdminUnlocked()) return;
+
     const form = editingForms[record.id];
     if (!form) return;
     const validationMessage = validateForm(form);
@@ -401,6 +533,7 @@ export function AdminDataEntry() {
   };
 
   const deleteRecord = async (record: DeliveryRecord) => {
+    if (!requireAdminUnlocked()) return;
     if (!window.confirm(`确认删除「${record.university}」这条交付记录吗？`)) return;
 
     try {
@@ -418,6 +551,8 @@ export function AdminDataEntry() {
   };
 
   const deleteSelectedRecords = async () => {
+    if (!requireAdminUnlocked()) return;
+
     const ids = selectedFilteredIds;
     if (ids.length === 0) {
       setMessage("请先勾选当前筛选结果中需要删除的记录。");
@@ -439,6 +574,8 @@ export function AdminDataEntry() {
   };
 
   const importCsv = async (file: File) => {
+    if (!requireAdminUnlocked()) return;
+
     const text = await file.text();
     const result = parseDeliveryCsv(text);
     if (result.errors.length > 0) {
@@ -472,6 +609,40 @@ export function AdminDataEntry() {
 
   return (
     <main className="admin-shell">
+      {authDialogOpen ? (
+        <div className="admin-auth-backdrop">
+          <section className="admin-auth-card" role="dialog" aria-modal="true" aria-labelledby="admin-auth-title">
+            <div className="admin-auth-icon">
+              <LockKeyhole size={22} aria-hidden="true" />
+            </div>
+            <div>
+              <span>Admin Access</span>
+              <h2 id="admin-auth-title">输入管理密码</h2>
+              <p>后端会校验环境变量 ADMIN_API_TOKEN，验证通过后写入 HttpOnly 会话 Cookie。</p>
+            </div>
+            <form
+              className="admin-auth-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void unlockAdmin();
+              }}
+            >
+              <input
+                autoFocus
+                type="password"
+                value={adminPassword}
+                placeholder="管理密码"
+                onChange={(event) => setAdminPassword(event.target.value)}
+              />
+              <button type="submit" disabled={authLoading}>
+                {authLoading ? "验证中" : "解锁管理"}
+              </button>
+            </form>
+            <p className="admin-auth-message">{authMessage}</p>
+          </section>
+        </div>
+      ) : null}
+
       <section className="admin-hero">
         <div>
           <span>Data Entry</span>
@@ -486,25 +657,51 @@ export function AdminDataEntry() {
             <FileDown size={16} aria-hidden="true" />
             下载CSV模板
           </button>
-          <label className="file-action">
+          <label
+            className={`file-action${adminUnlocked ? "" : " is-disabled"}`}
+            onClick={(event) => {
+              if (adminUnlocked) return;
+              event.preventDefault();
+              requireAdminUnlocked();
+            }}
+          >
             <FileUp size={16} aria-hidden="true" />
             CSV导入
             <input
               ref={fileRef}
               type="file"
+              disabled={!adminUnlocked}
               accept=".csv,text/csv"
               aria-label="CSV导入"
               onChange={(event) => {
                 const file = event.target.files?.[0];
-                if (file) void importCsv(file);
+                if (file) {
+                  if (adminUnlocked) {
+                    void importCsv(file);
+                  } else {
+                    requireAdminUnlocked();
+                  }
+                }
                 event.target.value = "";
               }}
             />
           </label>
-          <button type="button" onClick={() => downloadCsv(records)}>
+          <button
+            type="button"
+            onClick={() => {
+              if (!requireAdminUnlocked()) return;
+              downloadCsv(records);
+            }}
+          >
             <Download size={16} aria-hidden="true" />
             导出CSV
           </button>
+          {adminUnlocked ? (
+            <button type="button" onClick={() => void logoutAdmin()}>
+              <LogOut size={16} aria-hidden="true" />
+              退出管理
+            </button>
+          ) : null}
         </div>
       </section>
 
@@ -556,7 +753,7 @@ export function AdminDataEntry() {
             <X size={15} aria-hidden="true" />
             清空筛选
           </button>
-          <button type="button" onClick={selectFilteredRecords} disabled={filteredRecords.length === 0}>
+          <button type="button" onClick={selectFilteredRecords} disabled={!adminUnlocked || filteredRecords.length === 0}>
             选择当前结果
           </button>
           <button type="button" onClick={clearSelection} disabled={selectedIds.size === 0}>
@@ -566,7 +763,7 @@ export function AdminDataEntry() {
             className="danger-toolbar-action"
             type="button"
             onClick={() => void deleteSelectedRecords()}
-            disabled={selectedFilteredIds.length === 0}
+            disabled={!adminUnlocked || selectedFilteredIds.length === 0}
           >
             <Trash2 size={15} aria-hidden="true" />
             批量删除 {selectedFilteredIds.length}
@@ -582,7 +779,7 @@ export function AdminDataEntry() {
                     type="checkbox"
                     aria-label="选择当前筛选结果"
                     checked={allFilteredSelected}
-                    disabled={filteredRecords.length === 0}
+                    disabled={!adminUnlocked || filteredRecords.length === 0}
                     onChange={(event) => {
                       if (event.target.checked) {
                         selectFilteredRecords();
@@ -609,7 +806,11 @@ export function AdminDataEntry() {
               <tr className="entry-new-row">
                 <td />
                 <td>
-                  <select value={entryForm.province} onChange={(event) => updateField("province")(event.target.value)}>
+                  <select
+                    value={entryForm.province}
+                    disabled={!adminUnlocked}
+                    onChange={(event) => updateField("province")(event.target.value)}
+                  >
                     <option value="">选择省份</option>
                     {provinceOptions.map((province) => (
                       <option key={province} value={province}>
@@ -621,7 +822,7 @@ export function AdminDataEntry() {
                 <td>
                   <select
                     value={entryForm.city}
-                    disabled={!entryForm.province || cityLoading}
+                    disabled={!adminUnlocked || !entryForm.province || cityLoading}
                     onChange={(event) => updateField("city")(event.target.value)}
                   >
                     <option value="">{cityLoading ? "加载城市中" : entryForm.province ? "选择城市" : "先选省份"}</option>
@@ -635,6 +836,7 @@ export function AdminDataEntry() {
                 <td>
                   <input
                     value={entryForm.university}
+                    disabled={!adminUnlocked}
                     placeholder="高校名称"
                     onChange={(event) => updateField("university")(event.target.value)}
                   />
@@ -642,6 +844,7 @@ export function AdminDataEntry() {
                 <td>
                   <input
                     value={entryForm.provinceUniversityTotal}
+                    disabled={!adminUnlocked}
                     inputMode="numeric"
                     placeholder="如 160"
                     onChange={(event) => updateField("provinceUniversityTotal")(event.target.value)}
@@ -650,6 +853,7 @@ export function AdminDataEntry() {
                 <td>
                   <input
                     value={entryForm.cityUniversityTotal}
+                    disabled={!adminUnlocked}
                     inputMode="numeric"
                     placeholder="如 18"
                     onChange={(event) => updateField("cityUniversityTotal")(event.target.value)}
@@ -658,6 +862,7 @@ export function AdminDataEntry() {
                 <td>
                   <input
                     value={entryForm.productTags}
+                    disabled={!adminUnlocked}
                     placeholder="SDDC;EDS"
                     onChange={(event) => updateField("productTags")(event.target.value)}
                   />
@@ -665,6 +870,7 @@ export function AdminDataEntry() {
                 <td>
                   <input
                     value={entryForm.purchaseTags}
+                    disabled={!adminUnlocked}
                     placeholder="VMware替换;信创"
                     onChange={(event) => updateField("purchaseTags")(event.target.value)}
                   />
@@ -672,6 +878,7 @@ export function AdminDataEntry() {
                 <td>
                   <input
                     value={entryForm.equipmentDetails}
+                    disabled={!adminUnlocked}
                     placeholder="超融合节点x3;交换机x2"
                     onChange={(event) => updateField("equipmentDetails")(event.target.value)}
                   />
@@ -679,6 +886,7 @@ export function AdminDataEntry() {
                 <td>
                   <input
                     value={entryForm.painPoints}
+                    disabled={!adminUnlocked}
                     placeholder="授权成本高;数据增长快"
                     onChange={(event) => updateField("painPoints")(event.target.value)}
                   />
@@ -686,12 +894,18 @@ export function AdminDataEntry() {
                 <td>
                   <input
                     value={entryForm.deliveryContent}
+                    disabled={!adminUnlocked}
                     placeholder="交付说明"
                     onChange={(event) => updateField("deliveryContent")(event.target.value)}
                   />
                 </td>
                 <td>
-                  <button className="table-primary-action" type="button" disabled={!ready} onClick={() => void createRecord()}>
+                  <button
+                    className="table-primary-action"
+                    type="button"
+                    disabled={!ready || !adminUnlocked}
+                    onClick={() => void createRecord()}
+                  >
                     <Plus size={15} aria-hidden="true" />
                     新增
                   </button>
@@ -717,7 +931,7 @@ export function AdminDataEntry() {
                           type="checkbox"
                           aria-label={`选择${record.university}`}
                           checked={selectedIds.has(record.id)}
-                          disabled={Boolean(editingForm)}
+                          disabled={!adminUnlocked || Boolean(editingForm)}
                           onChange={() => toggleRecordSelection(record.id)}
                         />
                       </td>
@@ -726,6 +940,7 @@ export function AdminDataEntry() {
                           <td>
                             <select
                               value={editingForm.province}
+                              disabled={!adminUnlocked}
                               onChange={(event) => void updateEditingProvince(record.id, event.target.value)}
                             >
                               <option value="">选择省份</option>
@@ -739,7 +954,7 @@ export function AdminDataEntry() {
                           <td>
                             <select
                               value={editingForm.city}
-                              disabled={!editingForm.province}
+                              disabled={!adminUnlocked || !editingForm.province}
                               onChange={(event) => updateEditingField(record.id, "city", event.target.value)}
                             >
                               <option value="">{editingForm.province ? "选择城市" : "先选省份"}</option>
@@ -753,12 +968,14 @@ export function AdminDataEntry() {
                           <td>
                             <input
                               value={editingForm.university}
+                              disabled={!adminUnlocked}
                               onChange={(event) => updateEditingField(record.id, "university", event.target.value)}
                             />
                           </td>
                           <td>
                             <input
                               value={editingForm.provinceUniversityTotal}
+                              disabled={!adminUnlocked}
                               inputMode="numeric"
                               onChange={(event) =>
                                 updateEditingField(record.id, "provinceUniversityTotal", event.target.value)
@@ -768,6 +985,7 @@ export function AdminDataEntry() {
                           <td>
                             <input
                               value={editingForm.cityUniversityTotal}
+                              disabled={!adminUnlocked}
                               inputMode="numeric"
                               onChange={(event) => updateEditingField(record.id, "cityUniversityTotal", event.target.value)}
                             />
@@ -775,30 +993,35 @@ export function AdminDataEntry() {
                           <td>
                             <input
                               value={editingForm.productTags}
+                              disabled={!adminUnlocked}
                               onChange={(event) => updateEditingField(record.id, "productTags", event.target.value)}
                             />
                           </td>
                           <td>
                             <input
                               value={editingForm.purchaseTags}
+                              disabled={!adminUnlocked}
                               onChange={(event) => updateEditingField(record.id, "purchaseTags", event.target.value)}
                             />
                           </td>
                           <td>
                             <input
                               value={editingForm.equipmentDetails}
+                              disabled={!adminUnlocked}
                               onChange={(event) => updateEditingField(record.id, "equipmentDetails", event.target.value)}
                             />
                           </td>
                           <td>
                             <input
                               value={editingForm.painPoints}
+                              disabled={!adminUnlocked}
                               onChange={(event) => updateEditingField(record.id, "painPoints", event.target.value)}
                             />
                           </td>
                           <td>
                             <input
                               value={editingForm.deliveryContent}
+                              disabled={!adminUnlocked}
                               onChange={(event) => updateEditingField(record.id, "deliveryContent", event.target.value)}
                             />
                           </td>
@@ -826,7 +1049,7 @@ export function AdminDataEntry() {
                               <button
                                 className="table-primary-action"
                                 type="button"
-                                disabled={savingId === record.id}
+                                disabled={!adminUnlocked || savingId === record.id}
                                 onClick={() => void saveRecord(record)}
                               >
                                 <Save size={15} aria-hidden="true" />
@@ -838,7 +1061,12 @@ export function AdminDataEntry() {
                             </>
                           ) : (
                             <>
-                              <button className="table-plain-action" type="button" onClick={() => void startEditRecord(record)}>
+                              <button
+                                className="table-plain-action"
+                                type="button"
+                                disabled={!adminUnlocked}
+                                onClick={() => void startEditRecord(record)}
+                              >
                                 <Pencil size={15} aria-hidden="true" />
                                 编辑
                               </button>
@@ -846,6 +1074,7 @@ export function AdminDataEntry() {
                                 className="table-danger-action"
                                 type="button"
                                 aria-label={`删除${record.university}`}
+                                disabled={!adminUnlocked}
                                 onClick={() => void deleteRecord(record)}
                               >
                                 <Trash2 size={15} aria-hidden="true" />

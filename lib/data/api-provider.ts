@@ -3,19 +3,9 @@
 import type { DeliveryDataProvider } from "@/lib/data/provider";
 import type { DeliveryPayload, DeliveryRecord } from "@/lib/types";
 
-const ADMIN_TOKEN_STORAGE_KEY = "edu-system.admin-token";
-
-function readAdminToken() {
-  if (process.env.NEXT_PUBLIC_ADMIN_API_TOKEN) return process.env.NEXT_PUBLIC_ADMIN_API_TOKEN;
-  if (typeof window === "undefined") return undefined;
-  return window.sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) ?? undefined;
-}
-
 function buildJsonHeaders() {
-  const token = readAdminToken();
   return {
     "Content-Type": "application/json",
-    ...(token ? { authorization: `Bearer ${token}` } : {}),
   };
 }
 
@@ -50,6 +40,7 @@ export function createApiProvider(): DeliveryDataProvider {
         await fetch("/api/deliveries", {
           method: "PATCH",
           headers: buildJsonHeaders(),
+          credentials: "same-origin",
           body: JSON.stringify(records),
         }),
       );
@@ -60,6 +51,7 @@ export function createApiProvider(): DeliveryDataProvider {
         await fetch("/api/deliveries", {
           method: "POST",
           headers: buildJsonHeaders(),
+          credentials: "same-origin",
           body: JSON.stringify(payload),
         }),
       );
@@ -70,6 +62,7 @@ export function createApiProvider(): DeliveryDataProvider {
         await fetch("/api/deliveries", {
           method: "PUT",
           headers: buildJsonHeaders(),
+          credentials: "same-origin",
           body: JSON.stringify({ ...payload, id }),
         }),
       );
@@ -80,6 +73,7 @@ export function createApiProvider(): DeliveryDataProvider {
         await fetch("/api/deliveries", {
           method: "DELETE",
           headers: buildJsonHeaders(),
+          credentials: "same-origin",
           body: JSON.stringify({ id }),
         }),
       );
