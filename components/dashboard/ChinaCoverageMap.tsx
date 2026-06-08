@@ -138,9 +138,11 @@ function buildMapOption(metrics: RegionMetric[], mapName: string, selectedRegion
     geo: {
       map: mapName,
       roam: false,
-      zoom: mapName === MAP_NAME ? 1.12 : 1,
-      top: 28,
-      bottom: 34,
+      zoom: mapName === MAP_NAME ? 0.98 : 0.92,
+      top: mapName === MAP_NAME ? 18 : 34,
+      bottom: mapName === MAP_NAME ? 54 : 48,
+      left: mapName === MAP_NAME ? 28 : 42,
+      right: mapName === MAP_NAME ? 28 : 42,
       label: {
         show: true,
         color: "#334155",
@@ -204,9 +206,6 @@ export function ChinaCoverageMap({
   const option = useMemo(() => buildMapOption(metrics, mapName, selectedRegion), [mapName, metrics, selectedRegion]);
   const optionRef = useRef(option);
   const clickHandlerRef = useRef<(name: string) => void>(() => undefined);
-  const mapTitle = selectedProvince ?? "中国";
-  const listLabel = selectedProvince ? "城市覆盖列表" : "省份覆盖列表";
-  const activeRegion = selectedProvince ? selectedCity : selectedProvince;
 
   useEffect(() => {
     optionRef.current = option;
@@ -279,25 +278,8 @@ export function ChinaCoverageMap({
 
   return (
     <div className="echarts-map-shell" role="img" aria-label="ECharts 中国高校覆盖地图">
-      <span className="map-engine-label">ECharts {mapTitle}地图</span>
       <span className="map-scanline" aria-hidden="true" />
-      <span className="map-pulse-dot dot-north" aria-hidden="true" />
-      <span className="map-pulse-dot dot-east" aria-hidden="true" />
-      <span className="map-pulse-dot dot-south" aria-hidden="true" />
       <div className="echarts-map-canvas" ref={containerRef} aria-hidden="true" />
-      <div className="map-access-list" aria-label={listLabel}>
-        {metrics.map((metric) => (
-          <button
-            className={metric.name === activeRegion ? "province-access is-active" : "province-access"}
-            key={metric.name}
-            type="button"
-            onClick={() => clickHandlerRef.current(metric.name)}
-          >
-            {metric.name}
-            <small>{metric.universityCount} 所 / {metric.deliveryCount} 案例</small>
-          </button>
-        ))}
-      </div>
     </div>
   );
 }
