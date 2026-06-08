@@ -543,7 +543,15 @@
 }
 
 .rank-console {
-  display: block;
+  display: grid;
+  grid-template-rows: minmax(250px, 0.46fr) minmax(320px, 0.54fr);
+  gap: 12px;
+  min-height: 0;
+}
+
+.rank-panel,
+.case-panel {
+  min-height: 0;
 }
 
 .rank-card {
@@ -673,6 +681,158 @@
   color: #059669;
 }
 
+.case-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid rgba(147, 197, 253, 0.9);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.93);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.055);
+}
+
+.case-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 62px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--dash-blue-100);
+}
+
+.case-heading span {
+  color: var(--dash-blue-800);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.case-heading h2 {
+  margin: 3px 0 0;
+  color: var(--dash-slate-900);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.case-heading small {
+  color: var(--dash-slate-500);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.university-list {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 0;
+  padding: 12px 14px 14px;
+  overflow: auto;
+}
+
+.empty-case-state {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border: 1px dashed var(--dash-blue-200);
+  border-radius: 8px;
+  color: var(--dash-slate-500);
+  background: #f8fafc;
+}
+
+.empty-case-state strong {
+  color: var(--dash-slate-900);
+}
+
+.empty-case-state p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.university-card {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid var(--dash-slate-200);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055);
+}
+
+.university-card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.university-card header div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.university-card strong {
+  color: var(--dash-slate-900);
+}
+
+.university-card header span,
+.university-card header small {
+  color: var(--dash-slate-500);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.university-card p {
+  margin: 0;
+  color: var(--dash-blue-600);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.45;
+}
+
+.detail-group {
+  display: grid;
+  gap: 6px;
+}
+
+.detail-label {
+  color: var(--dash-slate-500);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.detail-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.detail-list li {
+  padding: 5px 8px;
+  border: 1px solid rgba(20, 184, 166, 0.22);
+  border-radius: 6px;
+  color: #0f766e;
+  background: #f0fdfa;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.detail-list.is-pain li {
+  border-color: rgba(245, 158, 11, 0.26);
+  color: #92400e;
+  background: #fffbeb;
+}
+
+.detail-list li.is-muted {
+  color: var(--dash-slate-500);
+  background: #f8fafc;
+}
+
 .insight-strip {
   display: grid;
   grid-template-columns: 160px repeat(4, minmax(0, 1fr));
@@ -714,6 +874,7 @@
   }
 
   .rank-console {
+    grid-template-rows: minmax(260px, 360px) minmax(320px, 520px);
     min-height: 420px;
   }
 
@@ -740,6 +901,10 @@
   .metric-ribbon,
   .rank-console {
     grid-template-columns: 1fr;
+  }
+
+  .rank-console {
+    grid-template-rows: minmax(260px, 340px) minmax(320px, 500px);
   }
 
   .command-title {

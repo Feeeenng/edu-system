@@ -17,14 +17,14 @@ import {
 import { gsap } from "gsap";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { groupByCity } from "@/lib/analytics/summary";
+import { getUniversityDetail, groupByCity } from "@/lib/analytics/summary";
 import { ChinaCoverageMap } from "@/components/dashboard/ChinaCoverageMap";
 import { useCoverageData } from "@/components/dashboard/useCoverageData";
 import { parseDeliveryCsv } from "@/lib/csv/parse";
 import { createClientProvider } from "@/lib/data/client-provider";
 import { dedupeDeliveries } from "@/lib/data/dedupe";
 import { createDeliveryRecord } from "@/lib/data/normalize";
-import type { DeliveryRecord, RegionMetric } from "@/lib/types";
+import type { DeliveryRecord, RegionMetric, UniversityDetail } from "@/lib/types";
 import "./coverage-dashboard.css";
 
 const PRODUCT_ORDER = ["SDDC", "EDS", "桌面云", "FastGPT"];
@@ -36,6 +36,18 @@ type CoverageDashboardProps = {
 
 type CoverageSortKey = "coverageRate" | "universityCount" | "totalUniversityCount";
 type CoverageSortDirection = "asc" | "desc";
+
+function formatTags(tags: string[]) {
+  return tags.length > 0 ? tags.join(" / ") : "暂无标签";
+}
+
+function getUniqueItems(items: string[]) {
+  return Array.from(new Set(items.filter(Boolean)));
+}
+
+function isUniversityDetail(value: UniversityDetail | undefined): value is UniversityDetail {
+  return value !== undefined;
+}
 
 function prefersReducedMotion() {
   if (process.env.NODE_ENV === "test") return true;
@@ -98,6 +110,20 @@ function sortCoverageMetrics(metrics: RegionMetric[], sortKey: CoverageSortKey, 
     const valueDiff = aValue - bValue;
     return valueDiff * direction || compareHigherCoverage(a, b);
   });
+}
+
+function getUniversityCards(records: DeliveryRecord[]) {
+  const seen = new Set<string>();
+  return records
+    .filter((record) => {
+      // 同一高校可能有多次交付，首页明细按高校聚合展示。
+      const key = `${record.province}/${record.city}/${record.university}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((record) => getUniversityDetail(records, record.province, record.city, record.university))
+    .filter(isUniversityDetail);
 }
 
 function getCoverageTone(metric: RegionMetric) {
@@ -180,6 +206,15 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
 
   const metricMap = useMemo(() => getMetricMap(provinceMetrics), [provinceMetrics]);
   const activeScopeLabel = selectedPurchaseTags[0] ?? selectedProductTags[0] ?? "全部";
+  const viewRecords = useMemo(
+    () =>
+      selectedProvince
+        ? filteredRecords.filter(
+            (record) => record.province === selectedProvince && (!selectedCity || record.city === selectedCity),
+          )
+        : filteredRecords,
+    [filteredRecords, selectedCity, selectedProvince],
+  );
   const cityMetrics = useMemo(
     () => (selectedProvince ? groupByCity(filteredRecords, selectedProvince, records) : []),
     [filteredRecords, records, selectedProvince],
@@ -198,6 +233,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     () => sortCoverageMetrics(mapMetrics, coverageSort.key, coverageSort.direction),
     [coverageSort.direction, coverageSort.key, mapMetrics],
   );
+  const universityCards = useMemo(() => getUniversityCards(viewRecords), [viewRecords]);
   const topRegions = useMemo(() => [...getRankableMetrics(mapMetrics)].sort(compareHigherCoverage).slice(0, 5), [mapMetrics]);
   const bottomRegions = useMemo(() => [...getRankableMetrics(mapMetrics)].sort(compareLowerCoverage).slice(0, 5), [mapMetrics]);
   const insightItems = useMemo(
@@ -248,6 +284,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     selectedProvince,
     selectedPurchaseTags,
     sortedRegions.length,
+    universityCards.length,
   ]);
 
   const openProvince = useCallback((province: string) => {
@@ -508,14 +545,36 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
         </div>
 
         <aside className="rank-console" ref={rankScopeRef}>
-          <CoverageRankTable
-            activeSort={coverageSort}
-            emptyText={isEmpty ? "暂无真实数据" : "暂无可排行区域"}
-            icon={<TrendingUp size={18} aria-hidden="true" />}
-            metrics={sortedRegions}
-            onSort={changeCoverageSort}
-            regionLevel={activeRegionLevel}
-          />
+          <section className="rank-panel" aria-label={`${activeRegionLevel}覆盖率全量排行`}>
+            <CoverageRankTable
+              activeSort={coverageSort}
+              emptyText={isEmpty ? "暂无真实数据" : "暂无可排行区域"}
+              icon={<TrendingUp size={18} aria-hidden="true" />}
+              metrics={sortedRegions}
+              onSort={changeCoverageSort}
+              regionLevel={activeRegionLevel}
+            />
+          </section>
+          <section className="case-panel" aria-label={`${selectedCity ?? selectedProvince ?? "全国"}高校案例`}>
+            <div className="case-heading">
+              <div>
+                <span>{selectedCity ?? selectedProvince ?? "全国"}高校案例</span>
+                <h2>学校设备与业务痛点</h2>
+              </div>
+              <small>{universityCards.length} 所高校</small>
+            </div>
+            <div className="university-list">
+              {universityCards.length === 0 && (
+                <div className="empty-case-state">
+                  <strong>{isEmpty ? "暂无真实数据" : "当前筛选暂无高校案例"}</strong>
+                  <p>{isEmpty ? "请从首页导入 CSV，或进入录入页新增记录。" : "可调整产品、关键词或返回上一级区域。"}</p>
+                </div>
+              )}
+              {universityCards.map((detail) => (
+                <UniversityCaseCard detail={detail} key={`${detail.province}-${detail.city}-${detail.university}`} />
+              ))}
+            </div>
+          </section>
         </aside>
       </section>
 
@@ -549,6 +608,46 @@ const SORT_LABELS: Record<CoverageSortKey, string> = {
   universityCount: "覆盖数",
   totalUniversityCount: "分母",
 };
+
+type UniversityCaseCardProps = {
+  detail: UniversityDetail;
+};
+
+function UniversityCaseCard({ detail }: UniversityCaseCardProps) {
+  const equipmentDetails = getUniqueItems(detail.deliveries.flatMap((delivery) => delivery.equipmentDetails ?? []));
+  const painPoints = getUniqueItems(detail.deliveries.flatMap((delivery) => delivery.painPoints ?? []));
+
+  return (
+    <article className="university-card" data-rank-card>
+      <header>
+        <div>
+          <strong>{detail.university}</strong>
+          <span>
+            {detail.province} · {detail.city}
+          </span>
+        </div>
+        <small>{detail.deliveries.length} 条交付</small>
+      </header>
+      <p>{formatTags(detail.productTags)}</p>
+      <section className="detail-group" aria-label={`${detail.university}设备清单`}>
+        <span className="detail-label">设备清单</span>
+        <ul className="detail-list">
+          {equipmentDetails.length > 0 ? (
+            equipmentDetails.map((item) => <li key={item}>{item}</li>)
+          ) : (
+            <li className="is-muted">暂无设备明细</li>
+          )}
+        </ul>
+      </section>
+      <section className="detail-group" aria-label={`${detail.university}业务痛点`}>
+        <span className="detail-label">业务痛点</span>
+        <ul className="detail-list is-pain">
+          {painPoints.length > 0 ? painPoints.map((item) => <li key={item}>{item}</li>) : <li className="is-muted">暂无痛点记录</li>}
+        </ul>
+      </section>
+    </article>
+  );
+}
 
 function CoverageRankTable({ activeSort, emptyText, icon, metrics, onSort, regionLevel }: CoverageRankTableProps) {
   const sortText = `${SORT_LABELS[activeSort.key]}${activeSort.direction === "desc" ? "降序" : "升序"}`;
