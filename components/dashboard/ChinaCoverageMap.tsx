@@ -194,7 +194,6 @@ function buildVisualMapOption(useCoverageRate: boolean, maxDeliveryCount: number
       textStyle: { color: "#475569", fontSize: 11 },
       pieces: buildVisualMapPieces(true),
       outOfRange: { color: "#d1d5db" },
-      calculable: false,
     };
   }
 
@@ -212,7 +211,6 @@ function buildVisualMapOption(useCoverageRate: boolean, maxDeliveryCount: number
     textStyle: { color: "#475569", fontSize: 11 },
     pieces: buildVisualMapPieces(false),
     outOfRange: { color: "#e2e8f0" },
-    calculable: false,
   };
 }
 
