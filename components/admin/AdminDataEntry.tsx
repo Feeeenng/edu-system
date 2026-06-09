@@ -17,6 +17,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildCsvTemplate, exportDeliveriesToCsv } from "@/lib/csv/export";
 import { parseDeliveryCsv } from "@/lib/csv/parse";
+import { COVERAGE_STATUSES } from "@/lib/coverage/status";
 import { createClientProvider } from "@/lib/data/client-provider";
 import { dedupeDeliveries, getDeliveryBusinessKey } from "@/lib/data/dedupe";
 import { createDeliveryRecord } from "@/lib/data/normalize";
@@ -74,14 +75,7 @@ const EMPTY_FILTERS: FilterState = {
   product: "",
 };
 
-const COVERAGE_STATUS_OPTIONS: Array<NonNullable<DeliveryPayload["coverageStatus"]>> = [
-  "已下单",
-  "新增商机",
-  "跟进中",
-  "未覆盖",
-  "暂停",
-  "已覆盖",
-];
+const COVERAGE_STATUS_OPTIONS = COVERAGE_STATUSES;
 
 function splitList(value: string) {
   return value

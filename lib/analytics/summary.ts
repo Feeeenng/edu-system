@@ -1,4 +1,5 @@
 import type { CoverageSummary, DeliveryRecord, RegionMetric, UniversityDetail } from "@/lib/types";
+import { isCoveredValue } from "@/lib/coverage/status";
 
 function unique(values: string[]) {
   return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b, "zh-CN"));
@@ -8,18 +9,9 @@ function compareByDeliveryCountThenName(a: RegionMetric, b: RegionMetric) {
   return b.deliveryCount - a.deliveryCount || a.name.localeCompare(b.name, "zh-CN");
 }
 
-const COVERAGE_SIGNALS = ["已下单", "新增商机"] as const;
-
-function valueHasCoverageSignal(value: unknown): boolean {
-  if (typeof value === "string") return COVERAGE_SIGNALS.some((signal) => value.includes(signal));
-  if (Array.isArray(value)) return value.some(valueHasCoverageSignal);
-  if (typeof value === "object" && value !== null) return Object.values(value).some(valueHasCoverageSignal);
-  return false;
-}
-
 function isCoveredRecord(record: DeliveryRecord) {
   // 同一条记录同时出现“已下单”和“新增商机”时，按一条覆盖记录计数。
-  return valueHasCoverageSignal([
+  return isCoveredValue([
     record.customerStatus,
     record.coverageStatus,
     record.projectStage,

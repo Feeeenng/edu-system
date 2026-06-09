@@ -1,3 +1,4 @@
+import { COVERAGE_STATUSES } from "@/lib/coverage/status";
 import type { DeliveryPayload, DeliveryRecord } from "@/lib/types";
 
 type ValidationResult = { ok: true } | { ok: false; error: string };
@@ -70,7 +71,6 @@ const RECORD_OPTIONAL_TEXT_FIELDS: Array<[keyof DeliveryRecord, string]> = [
   ["notes", "备注"],
 ];
 
-const COVERAGE_STATUSES = ["已覆盖", "跟进中", "未覆盖", "暂停", "已下单", "新增商机"] as const;
 const PROJECT_STAGES = ["线索", "测试", "方案", "交付", "运维"] as const;
 
 function hasText(value: unknown) {

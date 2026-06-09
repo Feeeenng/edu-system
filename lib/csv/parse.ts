@@ -1,5 +1,14 @@
 import Papa, { type ParseError } from "papaparse";
 import { resolveColumnKey } from "@/lib/csv/schema";
+import {
+  COVERAGE_SIGNALS,
+  COVERAGE_STATUSES,
+  hasPositiveCoverageMarker,
+  mergeCoverageSignals,
+  normalizeCoverageStatus,
+  type CoverageSignal,
+  type CoverageStatus,
+} from "@/lib/coverage/status";
 import type { DeliveryPayload } from "@/lib/types";
 
 export type CsvParseResult = {
@@ -70,7 +79,6 @@ function parseEnumField<T extends string>(
   return undefined;
 }
 
-const COVERAGE_STATUSES = ["已覆盖", "跟进中", "未覆盖", "暂停", "已下单", "新增商机"] as const;
 const PROJECT_STAGES = ["线索", "测试", "方案", "交付", "运维"] as const;
 
 function parseFieldMismatchRow(error: ParseError): number | undefined {
@@ -79,6 +87,29 @@ function parseFieldMismatchRow(error: ParseError): number | undefined {
 
 function hasStructuralParseError(error: ParseError): boolean {
   return error.type !== "FieldMismatch";
+}
+
+function getCoverageSignalsFromStandaloneColumns(row: Record<string, string>): CoverageSignal[] {
+  return COVERAGE_SIGNALS.filter((signal) =>
+    Object.entries(row).some(([header, value]) => header.includes(signal) && hasPositiveCoverageMarker(value)),
+  );
+}
+
+function parseCoverageStatus(
+  value: unknown,
+  row: Record<string, string>,
+  errors: string[],
+): CoverageStatus | undefined {
+  const standaloneStatus = mergeCoverageSignals(getCoverageSignalsFromStandaloneColumns(row));
+  const normalizedStatus = normalizeCoverageStatus(value);
+  const rawStatus = trimText(value);
+
+  if (rawStatus !== undefined && normalizedStatus === undefined) {
+    errors.push(`覆盖状态必须是以下值之一：${COVERAGE_STATUSES.join("、")}`);
+    return standaloneStatus;
+  }
+
+  return normalizedStatus ?? standaloneStatus;
 }
 
 export function parseDeliveryCsv(csvText: string): CsvParseResult {
@@ -125,7 +156,7 @@ export function parseDeliveryCsv(csvText: string): CsvParseResult {
     }
 
     const rowErrors: string[] = [];
-    const coverageStatus = parseEnumField(normalized.coverageStatus, "覆盖状态", COVERAGE_STATUSES, rowErrors);
+    const coverageStatus = parseCoverageStatus(normalized.coverageStatus, row, rowErrors);
     const projectStage = parseEnumField(normalized.projectStage, "项目阶段", PROJECT_STAGES, rowErrors);
     const provinceUniversityTotal = parseNumberField(normalized.provinceUniversityTotal, "省份高校总数", rowErrors);
     const cityUniversityTotal = parseNumberField(normalized.cityUniversityTotal, "城市高校总数", rowErrors);
