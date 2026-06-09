@@ -1,22 +1,38 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const e2eCsv = [
-  "省份,地区/城市,高校名称,产品标签,采购标签,省份高校总数,城市高校总数,设备明细,业务痛点",
-  "广东省,深圳市,测试录入大学,SDDC;EDS,信创,2,1,超融合节点x3;EDS存储节点x2,VMware替换压力大;科研数据增长快",
-  "广东省,广州市,广州测试大学,EDS,AI超融合,2,1,对象存储节点x4,科研归档容量不足",
-].join("\n");
-
 async function openCleanDashboard(page: Page) {
   await page.request.patch("/api/deliveries", { data: [] });
   await page.goto("/");
 }
 
-async function importDashboardCsv(page: Page) {
-  await page.getByLabel("首页CSV导入").setInputFiles({
-    name: "deliveries.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from(e2eCsv),
+async function seedDashboardRecords(page: Page) {
+  await page.request.patch("/api/deliveries", {
+    data: [
+      {
+        id: "e2e-dashboard-gd-sz",
+        province: "广东省",
+        city: "深圳市",
+        university: "测试录入大学",
+        productTags: ["SDDC", "EDS"],
+        purchaseTags: ["信创"],
+        equipmentDetails: ["超融合节点x3", "EDS存储节点x2"],
+        painPoints: ["VMware替换压力大", "科研数据增长快"],
+        updatedAt: "2026-06-09T00:00:00+08:00",
+      },
+      {
+        id: "e2e-dashboard-gd-gz",
+        province: "广东省",
+        city: "广州市",
+        university: "广州测试大学",
+        productTags: ["EDS"],
+        purchaseTags: ["AI超融合"],
+        equipmentDetails: ["对象存储节点x4"],
+        painPoints: ["科研归档容量不足"],
+        updatedAt: "2026-06-09T00:00:00+08:00",
+      },
+    ],
   });
+  await page.goto("/");
   await expect(page.getByRole("button", { name: /广东省/ }).first()).toBeVisible();
 }
 
@@ -25,7 +41,8 @@ test("dashboard coverage map supports product filtering and province selection",
 
   await expect(page.getByRole("heading", { name: "高校产品案例覆盖率热力图" })).toBeVisible();
   await expect(page.getByText("请先导入真实交付数据")).toBeVisible();
-  await importDashboardCsv(page);
+  await expect(page.getByLabel("首页CSV导入")).toHaveCount(0);
+  await seedDashboardRecords(page);
 
   await expect(page.getByRole("img", { name: "ECharts 中国高校覆盖地图" })).toBeVisible();
 

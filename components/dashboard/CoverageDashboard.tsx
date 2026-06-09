@@ -5,7 +5,6 @@ import {
   ArrowUpDown,
   Boxes,
   Database,
-  FileUp,
   GraduationCap,
   Lightbulb,
   MapPinned,
@@ -21,10 +20,6 @@ import { getUniversityDetail } from "@/lib/analytics/summary";
 import { ChinaCoverageMap } from "@/components/dashboard/ChinaCoverageMap";
 import { useCoverageData } from "@/components/dashboard/useCoverageData";
 import { isCoveredValue } from "@/lib/coverage/status";
-import { parseDeliveryCsv } from "@/lib/csv/parse";
-import { createClientProvider } from "@/lib/data/client-provider";
-import { dedupeDeliveries } from "@/lib/data/dedupe";
-import { createDeliveryRecord } from "@/lib/data/normalize";
 import type { DeliveryRecord, RegionMetric, UniversityDetail } from "@/lib/types";
 import "./coverage-dashboard.css";
 
@@ -202,20 +197,8 @@ function buildInsightItems(topRegions: RegionMetric[], bottomRegions: RegionMetr
   ];
 }
 
-function readFileText(file: File) {
-  if (typeof file.text === "function") return file.text();
-
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener("load", () => resolve(String(reader.result ?? "")));
-    reader.addEventListener("error", () => reject(reader.error ?? new Error("CSV文件读取失败")));
-    reader.readAsText(file);
-  });
-}
-
 export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {}) {
   const [selectedProvince, setSelectedProvince] = useState<string>();
-  const [importMessage, setImportMessage] = useState<string>();
   const [adminHref, setAdminHref] = useState("/admin");
   const [coverageSort, setCoverageSort] = useState<{
     key: CoverageSortKey;
@@ -240,7 +223,6 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     provinceMetrics,
     loading,
     error,
-    refresh,
   } = useCoverageData({ initialRecords });
 
   const orderedProducts = useMemo(() => {
@@ -364,35 +346,6 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     }));
   };
 
-  const importCsv = async (file: File) => {
-    const text = await readFileText(file);
-    const result = parseDeliveryCsv(text);
-    if (result.errors.length > 0) {
-      setImportMessage(result.errors.slice(0, 2).join("；"));
-      return;
-    }
-
-    const nextRecords = dedupeDeliveries(result.records.map(createDeliveryRecord));
-    if (nextRecords.length === 0) {
-      setImportMessage("CSV中没有可导入的记录，已保留现有数据。");
-      return;
-    }
-
-    try {
-      await createClientProvider().replaceAll(nextRecords);
-      await refresh();
-      backToCountry();
-      const duplicateCount = result.records.length - nextRecords.length;
-      setImportMessage(
-        duplicateCount > 0
-          ? `已导入 ${nextRecords.length} 条真实记录，自动忽略 ${duplicateCount} 条重复记录。`
-          : `已导入 ${nextRecords.length} 条真实记录。`,
-      );
-    } catch (importError) {
-      setImportMessage(importError instanceof Error ? importError.message : "CSV导入失败");
-    }
-  };
-
   return (
     <main className="coverage-shell" ref={shellRef}>
       <section className="coverage-command" aria-label="高校案例覆盖筛选" data-hero-motion>
@@ -410,27 +363,11 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
           />
         </label>
         <div className="coverage-actions" aria-label="数据操作">
-          <label className="file-action coverage-import-action">
-            <FileUp size={16} aria-hidden="true" />
-            导入CSV
-            <input
-              type="file"
-              accept=".csv,text/csv"
-              aria-label="首页CSV导入"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void importCsv(file);
-                event.target.value = "";
-              }}
-            />
-          </label>
           <a className="ghost-action" href={adminHref}>
             进入录入页
           </a>
         </div>
       </section>
-
-      {importMessage && <p className="import-message">{importMessage}</p>}
 
       <section className="product-dock" aria-label="产品筛选" data-hero-motion>
         <div className="tag-filter-group">
@@ -543,7 +480,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
               <div className="empty-state">
                 <span>等待真实数据</span>
                 <strong>请先导入真实交付数据</strong>
-                <p>支持 CSV 上传；导入后即可查看全国、省份和高校覆盖情况。</p>
+                <p>请进入录入页新增记录或导入 CSV；完成后即可查看全国、省份和高校覆盖情况。</p>
               </div>
             )}
           </div>
@@ -696,7 +633,7 @@ function UniversityCasePanel({
         {universityCards.length === 0 && (
           <div className="empty-case-state">
             <strong>{isEmpty ? "暂无真实数据" : "当前筛选暂无已覆盖学校"}</strong>
-            <p>{isEmpty ? "请从首页导入 CSV，或进入录入页新增记录。" : "未覆盖学校保留在地图分母中，右侧只展示已覆盖明细。"}</p>
+            <p>{isEmpty ? "请进入录入页新增记录或导入 CSV。" : "未覆盖学校保留在地图分母中，右侧只展示已覆盖明细。"}</p>
           </div>
         )}
         {selectedGroup && (

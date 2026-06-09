@@ -32,64 +32,27 @@ function createDeliveryRecord(overrides: Partial<DeliveryRecord>): DeliveryRecor
 }
 
 describe("CoverageDashboard", () => {
-  it("没有真实数据时显示空态和导入入口", async () => {
+  it("没有真实数据时显示空态和录入页入口", async () => {
     render(<CoverageDashboard />);
 
     expect(screen.getByRole("heading", { name: "高校产品案例覆盖率热力图" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("请先导入真实交付数据")).toBeInTheDocument());
-    expect(screen.getByLabelText("首页CSV导入")).toBeInTheDocument();
+    expect(screen.queryByLabelText("首页CSV导入")).not.toBeInTheDocument();
+    expect(screen.queryByText("导入CSV")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "进入录入页" }).getAttribute("href")).toMatch(/admin/);
     expect(screen.queryByRole("button", { name: /广东省/ })).not.toBeInTheDocument();
   });
 
-  it("首页支持直接导入 CSV 并刷新覆盖版图", async () => {
-    render(<CoverageDashboard />);
-
-    const file = new File(
-      [
-        [
-          "省份,地区/城市,高校名称,产品标签,采购标签,省份高校总数,城市高校总数,设备明细,业务痛点",
-          "广东省,深圳市,首页导入大学,SDDC,信创,1,1,超融合节点x3,真实数据上传",
-        ].join("\n"),
-      ],
-      "deliveries.csv",
-      { type: "text/csv" },
-    );
-
-    fireEvent.change(screen.getByLabelText("首页CSV导入"), { target: { files: [file] } });
-
-    await waitFor(() => expect(screen.getByText("广东省省份覆盖率最高，达到 100%。")).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: /广东省/ })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "覆盖率最高的5个省份" })).toBeInTheDocument();
-  });
-
-  it("首页导入只有表头的 CSV 不会清空已有真实数据", async () => {
+  it("首页不提供 CSV 导入且保留已有真实数据展示", async () => {
     render(<CoverageDashboard initialRecords={[createDeliveryRecord({ university: "已有真实大学" })]} />);
 
     await waitFor(() => expect(screen.getByText("广东省省份覆盖率最高，达到 100%。")).toBeInTheDocument());
-
-    const file = new File(["省份,地区/城市,高校名称,产品标签"], "empty.csv", { type: "text/csv" });
-    fireEvent.change(screen.getByLabelText("首页CSV导入"), { target: { files: [file] } });
-
-    await waitFor(() => expect(screen.getByText("CSV中没有可导入的记录，已保留现有数据。")).toBeInTheDocument());
+    expect(screen.queryByLabelText("首页CSV导入")).not.toBeInTheDocument();
     expect(screen.getByText("广东省省份覆盖率最高，达到 100%。")).toBeInTheDocument();
   });
 
-  it("导入省份简称时会标准化为完整省名并支持省份筛选", async () => {
-    render(<CoverageDashboard />);
-
-    const file = new File(
-      [
-        [
-          "省份,地区/城市,高校名称,产品标签,采购标签,省份高校总数,城市高校总数,设备明细,业务痛点",
-          "广东,深圳市,简称省份大学,SDDC,信创,1,1,超融合节点x2,省份简称录入",
-        ].join("\n"),
-      ],
-      "short-province.csv",
-      { type: "text/csv" },
-    );
-
-    fireEvent.change(screen.getByLabelText("首页CSV导入"), { target: { files: [file] } });
+  it("支持省份筛选", async () => {
+    render(<CoverageDashboard initialRecords={[createDeliveryRecord({ university: "省份筛选大学" })]} />);
 
     await waitFor(() => expect(screen.getByRole("button", { name: /广东省/ })).toBeInTheDocument());
     act(() => fireEvent.click(screen.getAllByRole("button", { name: /广东省/ })[0]));

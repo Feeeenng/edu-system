@@ -33,8 +33,7 @@
 }
 
 .coverage-shell button,
-.coverage-shell a,
-.file-action {
+.coverage-shell a {
   cursor: pointer;
   transition:
     transform 180ms ease,
@@ -48,8 +47,7 @@
 .product-dock,
 .overview-row,
 .coverage-workspace,
-.insight-strip,
-.import-message {
+.insight-strip {
   width: min(100%, 1720px);
   margin-inline: auto;
 }
@@ -116,9 +114,7 @@
   gap: 8px;
 }
 
-.coverage-actions .file-action,
-.coverage-actions .ghost-action,
-.coverage-import-action {
+.coverage-actions .ghost-action {
   min-height: 38px;
   padding: 0 12px;
   border: 1px solid var(--dash-blue-200);
@@ -134,32 +130,6 @@
   color: #ffffff;
   border-color: var(--dash-blue-800);
   background: var(--dash-blue-800);
-}
-
-.file-action {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  overflow: hidden;
-}
-
-.file-action input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
-.import-message {
-  margin-top: -2px;
-  margin-bottom: 10px;
-  color: var(--dash-blue-800);
-  font-size: 13px;
-  font-weight: 900;
 }
 
 .product-dock {
@@ -209,8 +179,7 @@
 
 .product-tab:hover,
 .ghost-action:hover,
-.city-chip:hover,
-.file-action:hover {
+.city-chip:hover {
   transform: translateY(-1px);
   border-color: var(--dash-blue-600);
   box-shadow: 0 10px 24px rgba(30, 64, 175, 0.12);
@@ -231,7 +200,6 @@
 .product-tab:focus-visible,
 .ghost-action:focus-visible,
 .city-chip:focus-visible,
-.file-action:focus-within,
 .coverage-search:focus-within {
   outline: 2px solid #f59e0b;
   outline-offset: 2px;
