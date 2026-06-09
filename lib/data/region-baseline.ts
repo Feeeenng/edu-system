@@ -1,6 +1,5 @@
 // 由 data/教育行业客户运营清单.xlsx 的「双一流+重点本科」sheet 汇总生成。
-// 全国高校总数按业务口径固定为 1695；省份分母来自 Excel 省份高校数量。
-export const NATIONAL_UNIVERSITY_TOTAL = 1695;
+// 全国高校总数由省份分母汇总得到，当前 Excel 共 379 所。
 
 export type RegionBaseline = {
   province: string;
@@ -165,3 +164,5 @@ export const REGION_BASELINES: RegionBaseline[] = [
     "sddcDeployed": 7
   }
 ];
+
+export const NATIONAL_UNIVERSITY_TOTAL = REGION_BASELINES.reduce((sum, item) => sum + item.total, 0);

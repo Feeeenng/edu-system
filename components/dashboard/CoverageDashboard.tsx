@@ -414,7 +414,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
           <p>
             分子：当前区域内已部署项目数；省份分母：Excel 区域内高校数量，例如北京 49 所。
           </p>
-          <p>全国高校总数固定为 1695；覆盖率 = 已部署项目数 / 区域高校总数。</p>
+          <p>全国高校总数为 Excel 省份分母汇总的 379 所；覆盖率 = 已部署项目数 / 区域高校总数。</p>
         </article>
         <div className="metric-ribbon">
           <article>
