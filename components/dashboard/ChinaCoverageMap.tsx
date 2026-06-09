@@ -127,10 +127,13 @@ function buildVisualMapPieces(useCoverageRate: boolean): PiecewiseVisualMapCompo
   if (useCoverageRate) {
     return [
       { value: 0, label: "0%", color: "#d1d5db" },
-      { gt: 0, lte: 5, label: "0% - 5%", color: "#60a5fa" },
-      { gt: 5, lte: 10, label: "5% - 10%", color: "#2563eb" },
-      { gt: 10, lte: 20, label: "10% - 20%", color: "#f59e0b" },
-      { gt: 20, label: "> 20%", color: "#ef4444" },
+      { gt: 0, lt: 5, label: "< 5%", color: "#ef4444" },
+      { gte: 5, lt: 10, label: "5% - 10%", color: "#fde68a" },
+      { gte: 10, lt: 20, label: "10% - 20%", color: "#facc15" },
+      { gte: 20, lt: 30, label: "20% - 30%", color: "#bef264" },
+      { gte: 30, lt: 40, label: "30% - 40%", color: "#86efac" },
+      { gte: 40, lt: 50, label: "40% - 50%", color: "#4ade80" },
+      { gte: 50, label: "> 50%", color: "#16a34a" },
     ];
   }
 
