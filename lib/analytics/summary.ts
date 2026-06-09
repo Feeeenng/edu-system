@@ -1,5 +1,6 @@
 import type { CoverageSummary, DeliveryRecord, RegionMetric, UniversityDetail } from "@/lib/types";
 import { isCoveredValue } from "@/lib/coverage/status";
+import { NATIONAL_UNIVERSITY_TOTAL, REGION_BASELINES } from "@/lib/data/region-baseline";
 
 function unique(values: string[]) {
   return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b, "zh-CN"));
@@ -41,6 +42,14 @@ function countCoveredSchools(records: DeliveryRecord[]) {
   return coveredSchools.size;
 }
 
+function getBaselineMetricMap() {
+  return new Map(REGION_BASELINES.map((item) => [item.province, item]));
+}
+
+function shouldUseSddcBaseline(records: DeliveryRecord[]) {
+  return records.length === 0 || records.every((record) => record.productTags.length === 0 || record.productTags.includes("SDDC"));
+}
+
 function buildRegionMetric(
   name: string,
   records: DeliveryRecord[],
@@ -48,8 +57,9 @@ function buildRegionMetric(
   province?: string,
   city?: string,
 ): RegionMetric {
-  const universityCount = countCoveredSchools(records);
-  const totalUniversityCount = countUniqueSchools(denominatorRecords);
+  const baseline = province && !city && shouldUseSddcBaseline(records) ? getBaselineMetricMap().get(province) : undefined;
+  const universityCount = baseline ? baseline.sddcDeployed : countCoveredSchools(records);
+  const totalUniversityCount = baseline ? baseline.total : countUniqueSchools(denominatorRecords);
 
   return {
     name,
@@ -79,11 +89,14 @@ function groupRecordsBy(records: DeliveryRecord[], getKey: (record: DeliveryReco
 }
 
 export function buildCoverageSummary(records: DeliveryRecord[], denominatorRecords: DeliveryRecord[] = records): CoverageSummary {
-  const universityCount = countCoveredSchools(records);
-  const totalUniversityCount = countUniqueSchools(denominatorRecords);
+  const useSddcBaseline = shouldUseSddcBaseline(records);
+  const universityCount = useSddcBaseline
+    ? REGION_BASELINES.reduce((sum, item) => sum + item.sddcDeployed, 0)
+    : countCoveredSchools(records);
+  const totalUniversityCount = useSddcBaseline ? NATIONAL_UNIVERSITY_TOTAL : countUniqueSchools(denominatorRecords);
 
   return {
-    provinceCount: new Set(records.map((item) => item.province)).size,
+    provinceCount: useSddcBaseline ? REGION_BASELINES.length : new Set(records.map((item) => item.province)).size,
     cityCount: new Set(records.map((item) => `${item.province}::${item.city}`)).size,
     universityCount,
     deliveryCount: records.length,
@@ -95,28 +108,25 @@ export function buildCoverageSummary(records: DeliveryRecord[], denominatorRecor
 }
 
 export function groupByProvince(records: DeliveryRecord[], denominatorRecords: DeliveryRecord[] = records): RegionMetric[] {
+  if (shouldUseSddcBaseline(records)) {
+    return REGION_BASELINES.map((baseline) => ({
+      name: baseline.province,
+      province: baseline.province,
+      universityCount: baseline.sddcDeployed,
+      totalUniversityCount: baseline.total,
+      coverageRate: baseline.total > 0 ? baseline.sddcDeployed / baseline.total : undefined,
+      deliveryCount: baseline.sddcDeployed,
+      productTags: baseline.sddcDeployed > 0 ? ["SDDC"] : [],
+      purchaseTags: [],
+    })).sort(compareByDeliveryCountThenName);
+  }
+
   const groups = groupRecordsBy(records, (record) => record.province);
   const denominatorGroups = groupRecordsBy(denominatorRecords, (record) => record.province);
   const provinces = Array.from(new Set([...groups.keys(), ...denominatorGroups.keys()]));
 
   return provinces
     .map((province) => buildRegionMetric(province, groups.get(province) ?? [], denominatorGroups.get(province) ?? [], province))
-    .sort(compareByDeliveryCountThenName);
-}
-
-export function groupByCity(
-  records: DeliveryRecord[],
-  province: string,
-  denominatorRecords: DeliveryRecord[] = records,
-): RegionMetric[] {
-  const scopedRecords = records.filter((item) => item.province === province);
-  const scopedDenominatorRecords = denominatorRecords.filter((item) => item.province === province);
-  const groups = groupRecordsBy(scopedRecords, (record) => record.city);
-  const denominatorGroups = groupRecordsBy(scopedDenominatorRecords, (record) => record.city);
-  const cities = Array.from(new Set([...groups.keys(), ...denominatorGroups.keys()]));
-
-  return cities
-    .map((city) => buildRegionMetric(city, groups.get(city) ?? [], denominatorGroups.get(city) ?? [], province, city))
     .sort(compareByDeliveryCountThenName);
 }
 

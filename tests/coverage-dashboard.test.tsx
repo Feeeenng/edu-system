@@ -1,5 +1,5 @@
 import { act } from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { CoverageDashboard } from "@/components/dashboard/CoverageDashboard";
 import { sampleDeliveries } from "@/tests/fixtures/deliveries";
@@ -75,7 +75,7 @@ describe("CoverageDashboard", () => {
     expect(screen.getByText("广东省省份覆盖率最高，达到 100%。")).toBeInTheDocument();
   });
 
-  it("导入省份简称时会标准化为完整省名并支持市级下钻", async () => {
+  it("导入省份简称时会标准化为完整省名并支持省份筛选", async () => {
     render(<CoverageDashboard />);
 
     const file = new File(
@@ -93,36 +93,26 @@ describe("CoverageDashboard", () => {
 
     await waitFor(() => expect(screen.getByRole("button", { name: /广东省/ })).toBeInTheDocument());
     act(() => fireEvent.click(screen.getAllByRole("button", { name: /广东省/ })[0]));
-    expect(screen.getByRole("heading", { name: "广东省城市覆盖率热力图" })).toBeInTheDocument();
-    act(() => fireEvent.click(screen.getAllByRole("button", { name: /深圳市/ })[0]));
-    expect(screen.getByRole("heading", { name: "广东省 / 深圳市覆盖率热力图" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "覆盖率最高的5个城市" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "广东省覆盖率热力图" })).toBeInTheDocument();
+    expect(screen.getByText("当前省份")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "返回省份" })).not.toBeInTheDocument();
   });
 
-  it("展示 ECharts 全国地图并支持点击省份钻取到市级区域", async () => {
+  it("展示 ECharts 全国地图并支持点击省份查看高校案例", async () => {
     render(<CoverageDashboard initialRecords={sampleDeliveries} />);
 
     expect(screen.getByRole("heading", { name: "高校产品案例覆盖率热力图" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: /广东省/ })).toBeInTheDocument());
 
-    expect(screen.getByText("ECharts 中国地图")).toBeInTheDocument();
     const map = screen.getByRole("img", { name: "ECharts 中国高校覆盖地图" });
-    expect(within(map).getByRole("button", { name: /广东省/ })).toBeInTheDocument();
+    expect(map).toBeInTheDocument();
 
-    act(() => fireEvent.click(within(map).getByRole("button", { name: /广东省/ })));
+    act(() => fireEvent.click(screen.getAllByRole("button", { name: /广东省/ })[0]));
 
-    expect(screen.getByRole("heading", { name: "广东省城市覆盖率热力图" })).toBeInTheDocument();
-    expect(screen.getByText("ECharts 广东省地图")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "广东省覆盖率热力图" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "返回全国" })).toBeInTheDocument();
-    expect(within(map).getByRole("button", { name: /深圳市/ })).toBeInTheDocument();
-    expect(within(map).getByRole("button", { name: /广州市/ })).toBeInTheDocument();
-
-    act(() => fireEvent.click(within(map).getByRole("button", { name: /深圳市/ })));
-
-    expect(screen.getByRole("heading", { name: "广东省 / 深圳市覆盖率热力图" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "返回省份" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "覆盖率最高的5个城市" })).toBeInTheDocument();
-    expect(screen.queryByText("中山大学")).not.toBeInTheDocument();
+    expect(screen.getByText("广东省高校案例")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "返回省份" })).not.toBeInTheDocument();
   });
 
   it("点击产品后查看对应全国覆盖版图和覆盖率排行", async () => {
@@ -133,8 +123,7 @@ describe("CoverageDashboard", () => {
     act(() => screen.getByRole("button", { name: /SDDC/ }).click());
 
     expect(screen.getByRole("heading", { name: "SDDC全国覆盖率热力图" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "覆盖率最高的5个省份" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "覆盖率最低的5个省份" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "省份覆盖率全量排行" })).toBeInTheDocument();
 
     act(() => screen.getByRole("button", { name: /EDS/ }).click());
 

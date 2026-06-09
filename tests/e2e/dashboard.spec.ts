@@ -20,28 +20,24 @@ async function importDashboardCsv(page: Page) {
   await expect(page.getByRole("button", { name: /广东省/ }).first()).toBeVisible();
 }
 
-test("dashboard coverage map supports product filtering and province drilldown", async ({ page }) => {
+test("dashboard coverage map supports product filtering and province selection", async ({ page }) => {
   await openCleanDashboard(page);
 
   await expect(page.getByRole("heading", { name: "高校产品案例覆盖率热力图" })).toBeVisible();
   await expect(page.getByText("请先导入真实交付数据")).toBeVisible();
   await importDashboardCsv(page);
 
-  await expect(page.getByText("ECharts 中国地图")).toBeVisible();
   await expect(page.getByRole("img", { name: "ECharts 中国高校覆盖地图" })).toBeVisible();
 
   await page.getByRole("button", { name: /SDDC/ }).click();
   await expect(page.getByRole("heading", { name: "SDDC全国覆盖率热力图" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "覆盖率最高的5个省份" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "省份覆盖率全量排行" })).toBeVisible();
 
   await page.getByRole("button", { name: /广东省/ }).first().click();
-  await expect(page.getByRole("heading", { name: "广东省城市覆盖率热力图" })).toBeVisible();
-  await expect(page.getByText("ECharts 广东省地图")).toBeVisible();
-  await page.getByRole("button", { name: /深圳市/ }).first().click();
-  await expect(page.getByRole("heading", { name: "广东省 / 深圳市覆盖率热力图" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "覆盖率最高的5个城市" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "广东省覆盖率热力图" })).toBeVisible();
+  await expect(page.getByText("广东省高校案例")).toBeVisible();
   await expect(page.getByRole("button", { name: "返回全国" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "返回省份" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "返回省份" })).toHaveCount(0);
 });
 
 test("admin data entry creates a server delivery record", async ({ page }) => {
@@ -71,5 +67,5 @@ test("admin data entry creates a server delivery record", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("搜索高校、设备、业务痛点").fill("测试录入大学");
   await expect(page.getByRole("heading", { name: "高校产品案例覆盖率热力图" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "覆盖率最高的5个省份" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "省份覆盖率全量排行" })).toBeVisible();
 });

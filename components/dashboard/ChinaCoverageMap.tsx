@@ -14,7 +14,6 @@ import type { RegionMetric } from "@/lib/types";
 
 const MAP_NAME = "edu-china";
 const REGISTERED_MAPS = new Set<string>();
-type MapJsonModule = { default: unknown };
 type GeoLabelFormatterParams = { name?: string };
 type MapLayout = {
   center: [string, string];
@@ -43,77 +42,16 @@ const SHORT_REGION_NAMES: Record<string, string> = {
   台湾省: "台湾",
 };
 
-const PROVINCE_MAP_LOADERS: Record<string, () => Promise<MapJsonModule>> = {
-  北京市: () => import("china-map-echarts/map/110000.json"),
-  天津市: () => import("china-map-echarts/map/120000.json"),
-  河北省: () => import("china-map-echarts/map/130000.json"),
-  山西省: () => import("china-map-echarts/map/140000.json"),
-  内蒙古自治区: () => import("china-map-echarts/map/150000.json"),
-  辽宁省: () => import("china-map-echarts/map/210000.json"),
-  吉林省: () => import("china-map-echarts/map/220000.json"),
-  黑龙江省: () => import("china-map-echarts/map/230000.json"),
-  上海市: () => import("china-map-echarts/map/310000.json"),
-  江苏省: () => import("china-map-echarts/map/320000.json"),
-  浙江省: () => import("china-map-echarts/map/330000.json"),
-  安徽省: () => import("china-map-echarts/map/340000.json"),
-  福建省: () => import("china-map-echarts/map/350000.json"),
-  江西省: () => import("china-map-echarts/map/360000.json"),
-  山东省: () => import("china-map-echarts/map/370000.json"),
-  河南省: () => import("china-map-echarts/map/410000.json"),
-  湖北省: () => import("china-map-echarts/map/420000.json"),
-  湖南省: () => import("china-map-echarts/map/430000.json"),
-  广东省: () => import("china-map-echarts/map/440000.json"),
-  广西壮族自治区: () => import("china-map-echarts/map/450000.json"),
-  海南省: () => import("china-map-echarts/map/460000.json"),
-  重庆市: () => import("china-map-echarts/map/500000.json"),
-  四川省: () => import("china-map-echarts/map/510000.json"),
-  贵州省: () => import("china-map-echarts/map/520000.json"),
-  云南省: () => import("china-map-echarts/map/530000.json"),
-  西藏自治区: () => import("china-map-echarts/map/540000.json"),
-  陕西省: () => import("china-map-echarts/map/610000.json"),
-  甘肃省: () => import("china-map-echarts/map/620000.json"),
-  青海省: () => import("china-map-echarts/map/630000.json"),
-  宁夏回族自治区: () => import("china-map-echarts/map/640000.json"),
-  新疆维吾尔自治区: () => import("china-map-echarts/map/650000.json"),
-  香港特别行政区: () => import("china-map-echarts/map/810000.json"),
-  澳门特别行政区: () => import("china-map-echarts/map/820000.json"),
-};
-
 type ChinaCoverageMapProps = {
   metrics: RegionMetric[];
   selectedProvince?: string;
-  selectedCity?: string;
   onSelectProvince(province: string): void;
-  onSelectCity(city: string): void;
 };
 
 function registerChinaMap() {
   if (REGISTERED_MAPS.has(MAP_NAME)) return;
   echarts.registerMap(MAP_NAME, chinaGeoJson as Parameters<typeof echarts.registerMap>[1]);
   REGISTERED_MAPS.add(MAP_NAME);
-}
-
-function getProvinceMapName(province: string) {
-  return `edu-province-${province}`;
-}
-
-async function registerProvinceMap(province: string) {
-  const mapName = getProvinceMapName(province);
-  if (REGISTERED_MAPS.has(mapName)) return mapName;
-
-  const loader = PROVINCE_MAP_LOADERS[province];
-  if (!loader) return MAP_NAME;
-
-  const geoJson = await loader();
-  echarts.registerMap(mapName, geoJson.default as Parameters<typeof echarts.registerMap>[1]);
-  REGISTERED_MAPS.add(mapName);
-  return mapName;
-}
-
-function getRenderableMapName(province?: string) {
-  if (!province) return MAP_NAME;
-  const mapName = getProvinceMapName(province);
-  return REGISTERED_MAPS.has(mapName) ? mapName : MAP_NAME;
 }
 
 function shouldSkipEchartsRuntime() {
@@ -138,8 +76,7 @@ function buildVisualMapPieces(useCoverageRate: boolean): PiecewiseVisualMapCompo
       { gte: 10, lt: 20, label: "10% - 20%", color: "#fb923c" },
       { gte: 5, lt: 10, label: "5% - 10%", color: "#fde047" },
       { gt: 0, lt: 5, label: "0% - 5%", color: "#bef264" },
-      { value: 0, label: "0%", color: "#73c763" },
-      { value: -1, label: "无数据", color: "#d1d5db" },
+      { value: 0, label: "0% / 未覆盖", color: "#d1d5db" },
     ];
   }
 
@@ -153,29 +90,11 @@ function buildVisualMapPieces(useCoverageRate: boolean): PiecewiseVisualMapCompo
 }
 
 function getMapLayout(mapName: string): MapLayout {
-  const isCountryMap = mapName === MAP_NAME;
-  const isHainanMap = mapName === getProvinceMapName("海南省");
-
-  if (isHainanMap) {
-    return {
-      center: ["50%", "50%"],
-      size: "102%",
-      aspectScale: 1,
-      labelFontSize: 8,
-      showLabel: false,
-      // 海南省 GeoJSON 包含三沙远海范围，这里聚焦主岛，避免主图在浏览器里被压小。
-      boundingCoords: [
-        [108.35, 20.35],
-        [111.25, 18.05],
-      ],
-    };
-  }
-
   return {
-    center: isCountryMap ? ["50%", "52%"] : ["50%", "53%"],
-    size: isCountryMap ? "104%" : "94%",
-    aspectScale: isCountryMap ? 0.82 : 0.86,
-    labelFontSize: isCountryMap ? 10 : 11,
+    center: mapName === MAP_NAME ? ["50%", "52%"] : ["50%", "52%"],
+    size: mapName === MAP_NAME ? "104%" : "104%",
+    aspectScale: 0.82,
+    labelFontSize: 10,
     showLabel: true,
   };
 }
@@ -325,14 +244,12 @@ function buildMapOption(metrics: RegionMetric[], mapName: string, selectedRegion
 export function ChinaCoverageMap({
   metrics,
   selectedProvince,
-  selectedCity,
   onSelectProvince,
-  onSelectCity,
 }: ChinaCoverageMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ECharts | null>(null);
-  const mapName = getRenderableMapName(selectedProvince);
-  const selectedRegion = selectedProvince ? selectedCity : selectedProvince;
+  const mapName = MAP_NAME;
+  const selectedRegion = selectedProvince;
   const option = useMemo(() => buildMapOption(metrics, mapName, selectedRegion), [mapName, metrics, selectedRegion]);
   const optionRef = useRef(option);
   const clickHandlerRef = useRef<(name: string) => void>(() => undefined);
@@ -343,14 +260,9 @@ export function ChinaCoverageMap({
 
   useEffect(() => {
     clickHandlerRef.current = (name: string) => {
-      if (selectedProvince) {
-        onSelectCity(name);
-        return;
-      }
-
       onSelectProvince(name);
     };
-  }, [onSelectCity, onSelectProvince, selectedProvince]);
+  }, [onSelectProvince]);
 
   useEffect(() => {
     if (!containerRef.current || shouldSkipEchartsRuntime()) return;
@@ -394,25 +306,10 @@ export function ChinaCoverageMap({
 
   useEffect(() => {
     if (shouldSkipEchartsRuntime()) return;
-    let disposed = false;
-
-    const updateMap = async () => {
-      registerChinaMap();
-      if (selectedProvince) {
-        await registerProvinceMap(selectedProvince);
-      }
-      if (!disposed) {
-        const nextMapName = getRenderableMapName(selectedProvince);
-        chartRef.current?.setOption(buildMapOption(metrics, nextMapName, selectedRegion), true);
-        chartRef.current?.resize();
-      }
-    };
-
-    void updateMap();
-    return () => {
-      disposed = true;
-    };
-  }, [metrics, option, selectedProvince, selectedRegion]);
+    registerChinaMap();
+    chartRef.current?.setOption(option, true);
+    chartRef.current?.resize();
+  }, [option]);
 
   return (
     <div className="echarts-map-shell" role="img" aria-label="ECharts 中国高校覆盖地图">

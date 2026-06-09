@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { filterDeliveries } from "@/lib/analytics/filter";
-import { buildCoverageSummary, groupByCity, groupByProvince, getUniversityDetail } from "@/lib/analytics/summary";
+import { buildCoverageSummary, groupByProvince, getUniversityDetail } from "@/lib/analytics/summary";
 import { rankUniversities } from "@/lib/analytics/rankings";
 import { makeDelivery, sampleDeliveries } from "@/tests/fixtures/deliveries";
 
@@ -93,25 +93,15 @@ describe("analytics", () => {
     expect(withoutEmptyTags.purchaseTagCount).toBe(1);
   });
 
-  it("按省份和城市聚合高校覆盖", () => {
+  it("按省份聚合高校覆盖", () => {
     const provinces = groupByProvince(sampleDeliveries);
-    const cities = groupByCity(sampleDeliveries, "广东省");
     const tiedProvinces = groupByProvince([
       makeDelivery({ id: "province-zj-001", province: "浙江省", city: "杭州市", university: "浙江大学" }),
       makeDelivery({ id: "province-ah-001", province: "安徽省", city: "合肥市", university: "安徽大学" }),
     ]);
-    const tiedCities = groupByCity(
-      [
-        makeDelivery({ id: "city-sz-001", province: "广东省", city: "深圳市", university: "深圳大学" }),
-        makeDelivery({ id: "city-gz-001", province: "广东省", city: "广州市", university: "中山大学" }),
-      ],
-      "广东省",
-    );
 
     expect(provinces.find((item) => item.name === "广东省")?.universityCount).toBe(3);
-    expect(cities.map((item) => item.name)).toEqual(expect.arrayContaining(["广州市", "深圳市"]));
     expect(tiedProvinces.map((item) => item.name)).toEqual(["安徽省", "浙江省"]);
-    expect(tiedCities.map((item) => item.name)).toEqual(["广州市", "深圳市"]);
   });
 
   it("获取高校详情并按交付日期倒序", () => {

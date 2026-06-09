@@ -17,7 +17,7 @@ import {
 import { gsap } from "gsap";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { getUniversityDetail, groupByCity } from "@/lib/analytics/summary";
+import { getUniversityDetail } from "@/lib/analytics/summary";
 import { ChinaCoverageMap } from "@/components/dashboard/ChinaCoverageMap";
 import { useCoverageData } from "@/components/dashboard/useCoverageData";
 import { isCoveredValue } from "@/lib/coverage/status";
@@ -198,7 +198,7 @@ function buildInsightItems(topRegions: RegionMetric[], bottomRegions: RegionMetr
     lowest
       ? `${lowest.name}${regionLevel}覆盖率最低，当前为 ${formatPercent(lowest.coverageRate)}，建议优先补强。`
       : "低覆盖区域将在导入分母后自动生成。",
-    `${scopeLabel}视图按${regionLevel}统计，点击地图可继续下钻查看区域覆盖。`,
+    `${scopeLabel}视图按${regionLevel}统计，点击地图可切换省份范围查看覆盖。`,
   ];
 }
 
@@ -215,7 +215,6 @@ function readFileText(file: File) {
 
 export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {}) {
   const [selectedProvince, setSelectedProvince] = useState<string>();
-  const [selectedCity, setSelectedCity] = useState<string>();
   const [importMessage, setImportMessage] = useState<string>();
   const [adminHref, setAdminHref] = useState("/admin");
   const [coverageSort, setCoverageSort] = useState<{
@@ -228,7 +227,6 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
   const rankScopeRef = useRef<HTMLElement>(null);
   const {
     records,
-    denominatorRecords,
     filteredRecords,
     productOptions,
     purchaseOptions,
@@ -246,9 +244,8 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
   } = useCoverageData({ initialRecords });
 
   const orderedProducts = useMemo(() => {
-    const known = PRODUCT_ORDER.filter((product) => productOptions.includes(product));
-    const rest = productOptions.filter((product) => !known.includes(product));
-    return [...known, ...rest];
+    const rest = productOptions.filter((product) => !PRODUCT_ORDER.includes(product));
+    return [...PRODUCT_ORDER, ...rest];
   }, [productOptions]);
   const orderedPurchases = useMemo(() => {
     const known = PURCHASE_ORDER.filter((tag) => purchaseOptions.includes(tag));
@@ -260,27 +257,17 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
   const activeScopeLabel = selectedPurchaseTags[0] ?? selectedProductTags[0] ?? "全部";
   const viewRecords = useMemo(
     () =>
-      selectedProvince
-        ? filteredRecords.filter(
-            (record) => record.province === selectedProvince && (!selectedCity || record.city === selectedCity),
-          )
-        : filteredRecords,
-    [filteredRecords, selectedCity, selectedProvince],
+      selectedProvince ? filteredRecords.filter((record) => record.province === selectedProvince) : filteredRecords,
+    [filteredRecords, selectedProvince],
   );
-  const cityMetrics = useMemo(
-    () => (selectedProvince ? groupByCity(filteredRecords, selectedProvince, denominatorRecords) : []),
-    [denominatorRecords, filteredRecords, selectedProvince],
-  );
-  const cityMetricMap = useMemo(() => getMetricMap(cityMetrics), [cityMetrics]);
-  const mapMetrics = selectedProvince ? cityMetrics : provinceMetrics;
+  const mapMetrics = provinceMetrics;
   const selectedMetric = selectedProvince ? metricMap.get(selectedProvince) : undefined;
-  const selectedCityMetric = selectedCity ? cityMetricMap.get(selectedCity) : undefined;
-  const activeMetric = selectedCity ? selectedCityMetric : selectedProvince ? selectedMetric : undefined;
+  const activeMetric = selectedProvince ? selectedMetric : undefined;
   const activeCoveredCount = activeMetric?.universityCount ?? summary.universityCount;
   const activeTotalCount = activeMetric?.totalUniversityCount ?? summary.totalUniversityCount;
   const activeCoverageRate = activeMetric?.coverageRate ?? summary.coverageRate;
-  const activeRegionCount = selectedProvince ? cityMetrics.length : provinceMetrics.length;
-  const activeRegionLevel = selectedProvince ? "城市" : "省份";
+  const activeRegionCount = provinceMetrics.length;
+  const activeRegionLevel = "省份";
   const sortedRegions = useMemo(
     () => sortCoverageMetrics(mapMetrics, coverageSort.key, coverageSort.direction),
     [coverageSort.direction, coverageSort.key, mapMetrics],
@@ -294,11 +281,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     [activeRegionLevel, activeScopeLabel, bottomRegions, topRegions],
   );
   const isEmpty = !loading && records.length === 0;
-  const mapHeading = selectedProvince
-    ? selectedCity
-      ? `${selectedProvince} / ${selectedCity}覆盖率热力图`
-      : `${selectedProvince}城市覆盖率热力图`
-    : `${activeScopeLabel}全国覆盖率热力图`;
+  const mapHeading = selectedProvince ? `${selectedProvince}覆盖率热力图` : `${activeScopeLabel}全国覆盖率热力图`;
 
   useEffect(() => {
     if (!shellRef.current || prefersReducedMotion()) return;
@@ -332,7 +315,6 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     coverageSort.direction,
     coverageSort.key,
     keyword,
-    selectedCity,
     selectedProductTags,
     selectedProvince,
     selectedPurchaseTags,
@@ -349,12 +331,6 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
 
   const openProvince = useCallback((province: string) => {
     setSelectedProvince(province);
-    setSelectedCity(undefined);
-    setRightPanelTab("cases");
-  }, []);
-
-  const openCity = useCallback((city: string) => {
-    setSelectedCity(city);
     setRightPanelTab("cases");
   }, []);
 
@@ -366,7 +342,6 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     );
     setSelectedPurchaseTags([]);
     setSelectedProvince(undefined);
-    setSelectedCity(undefined);
     setRightPanelTab("coverage");
   };
 
@@ -374,13 +349,11 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     setSelectedPurchaseTags(selectedPurchaseTags.includes(tag) ? [] : [tag]);
     setSelectedProductTags([]);
     setSelectedProvince(undefined);
-    setSelectedCity(undefined);
     setRightPanelTab("coverage");
   };
 
   const backToCountry = () => {
     setSelectedProvince(undefined);
-    setSelectedCity(undefined);
     setRightPanelTab("coverage");
   };
 
@@ -502,9 +475,9 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
         <article className="method-card">
           <strong>统计口径</strong>
           <p>
-            分子：当前筛选下已采购产品、已下单或新增商机的唯一高校数；同一高校多条记录只计 1 次。
+            分子：当前区域内已部署项目数；省份分母：Excel 区域内高校数量，例如北京 49 所。
           </p>
-          <p>分母：当前关键词范围内高校底表总数；覆盖率 = 覆盖高校 / 高校总数。</p>
+          <p>全国高校总数固定为 1695；覆盖率 = 已部署项目数 / 区域高校总数。</p>
         </article>
         <div className="metric-ribbon">
           <article>
@@ -534,7 +507,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
         <div className="map-console">
           <div className="console-heading">
             <div>
-              <span>{selectedProvince ? "区域覆盖率热力图" : "全国省份覆盖率热力图"}</span>
+              <span>{selectedProvince ? "省份覆盖率热力图" : "全国省份覆盖率热力图"}</span>
               <h2>{mapHeading}</h2>
             </div>
             <div className="console-actions">
@@ -542,12 +515,6 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
                 <button className="ghost-action" type="button" onClick={backToCountry}>
                   <ArrowLeft size={16} aria-hidden="true" />
                   返回全国
-                </button>
-              )}
-              {selectedCity && (
-                <button className="ghost-action" type="button" onClick={() => setSelectedCity(undefined)}>
-                  <ArrowLeft size={16} aria-hidden="true" />
-                  返回省份
                 </button>
               )}
               {loading && <span className="status-pill">加载中</span>}
@@ -559,21 +526,16 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
             <ChinaCoverageMap
               metrics={mapMetrics}
               selectedProvince={selectedProvince}
-              selectedCity={selectedCity}
               onSelectProvince={openProvince}
-              onSelectCity={openCity}
             />
             {selectedProvince && (
               <div className="province-lens" aria-label="当前区域">
-                <span>{selectedCity ? "当前城市" : "当前省份"}</span>
-                <strong>{selectedCity ?? selectedProvince}</strong>
+                <span>当前省份</span>
+                <strong>{selectedProvince}</strong>
                 <p>
-                  {formatCoverageFraction(
-                    (selectedCity ? selectedCityMetric?.universityCount : selectedMetric?.universityCount) ?? 0,
-                    selectedCity ? selectedCityMetric?.totalUniversityCount : selectedMetric?.totalUniversityCount,
-                  )}
+                  {formatCoverageFraction(selectedMetric?.universityCount ?? 0, selectedMetric?.totalUniversityCount)}
                   <br />
-                  覆盖率 {formatPercent(selectedCity ? selectedCityMetric?.coverageRate : selectedMetric?.coverageRate)}
+                  覆盖率 {formatPercent(selectedMetric?.coverageRate)}
                 </p>
               </div>
             )}
@@ -581,31 +543,10 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
               <div className="empty-state">
                 <span>等待真实数据</span>
                 <strong>请先导入真实交付数据</strong>
-                <p>支持 CSV 上传；导入后即可查看全国、省份、城市和高校覆盖情况。</p>
+                <p>支持 CSV 上传；导入后即可查看全国、省份和高校覆盖情况。</p>
               </div>
             )}
           </div>
-
-          {selectedProvince && (
-            <div className="city-strip" aria-label={`${selectedProvince}地区覆盖`}>
-              <span>地区覆盖</span>
-              {cityMetrics.length > 0 ? (
-                cityMetrics.map((city) => (
-                  <button
-                    className={city.name === selectedCity ? "city-chip is-active" : "city-chip"}
-                    key={city.name}
-                    type="button"
-                    onClick={() => openCity(city.name)}
-                  >
-                    {city.name}
-                    <small>{formatCoverageFraction(city.universityCount, city.totalUniversityCount)}</small>
-                  </button>
-                ))
-              ) : (
-                <small>当前产品暂无该省案例</small>
-              )}
-            </div>
-          )}
         </div>
 
         <aside className="rank-console" ref={rankScopeRef}>
@@ -663,7 +604,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
               isEmpty={isEmpty}
               onCaseProvinceFilterChange={setCaseProvinceFilter}
               provinceCaseGroups={provinceCaseGroups}
-              scopeLabel={selectedCity ?? selectedProvince ?? "全国"}
+              scopeLabel={selectedProvince ?? "全国"}
               universityCards={universityCards}
             />
           </section>
