@@ -173,8 +173,8 @@ function buildInsightItems(topRegions: RegionMetric[], bottomRegions: RegionMetr
       ? `${best.name}${regionLevel}覆盖率最高，达到 ${formatPercent(best.coverageRate)}。`
       : "请先补充分母数据，系统才能计算覆盖率排行。",
     strongest
-      ? `${strongest.name}已覆盖 ${strongest.universityCount} 所高校，可作为${scopeLabel}重点样板区域。`
-      : `当前${scopeLabel}筛选下暂无已覆盖高校。`,
+      ? `${strongest.name}覆盖数 ${strongest.universityCount} 次，可作为${scopeLabel}重点样板区域。`
+      : `当前${scopeLabel}筛选下暂无已下单或新增商机记录。`,
     lowest
       ? `${lowest.name}${regionLevel}覆盖率最低，当前为 ${formatPercent(lowest.coverageRate)}，建议优先补强。`
       : "低覆盖区域将在导入分母后自动生成。",
@@ -246,8 +246,8 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     [filteredRecords, selectedCity, selectedProvince],
   );
   const cityMetrics = useMemo(
-    () => (selectedProvince ? groupByCity(filteredRecords, selectedProvince, records) : []),
-    [filteredRecords, records, selectedProvince],
+    () => (selectedProvince ? groupByCity(filteredRecords, selectedProvince) : []),
+    [filteredRecords, selectedProvince],
   );
   const cityMetricMap = useMemo(() => getMetricMap(cityMetrics), [cityMetrics]);
   const mapMetrics = selectedProvince ? cityMetrics : provinceMetrics;
@@ -473,10 +473,9 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
         <article className="method-card">
           <strong>统计口径</strong>
           <p>
-            分子：当前筛选下已覆盖高校数量；分母：对应省份或城市录入的高校总数。重复交付按同一高校去重，只计
-            1 次覆盖。
+            分子：当前筛选下已下单 + 新增商机记录数；同一条记录同时出现两个状态时只计 1 次覆盖。
           </p>
-          <p>覆盖率 = 已覆盖高校 / 区域高校总数。</p>
+          <p>分母：当前筛选下归属地出现次数；覆盖率 = 覆盖数 / 总数。</p>
         </article>
         <div className="metric-ribbon">
           <article>
@@ -491,7 +490,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
           </article>
           <article>
             <GraduationCap size={22} aria-hidden="true" />
-            <span>总数（分母）</span>
+            <span>归属地次数（分母）</span>
             <strong>{activeTotalCount ?? "-"}</strong>
           </article>
           <article>

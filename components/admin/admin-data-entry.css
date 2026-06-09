@@ -431,7 +431,7 @@
 
 .entry-table {
   width: 100%;
-  min-width: 1660px;
+  min-width: 1780px;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 13px;
@@ -535,6 +535,10 @@
 
 .col-total {
   width: 124px;
+}
+
+.col-status {
+  width: 118px;
 }
 
 .col-action {

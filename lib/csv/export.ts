@@ -7,7 +7,7 @@ const CSV_TEMPLATE_SAMPLE: DeliveryPayload = {
   city: "深圳市",
   university: "深圳大学",
   customerStatus: "重点客户",
-  coverageStatus: "已覆盖",
+  coverageStatus: "已下单",
   projectStage: "交付",
   deliveryDate: "2026-06-08",
   owner: "张三",

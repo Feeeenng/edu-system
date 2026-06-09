@@ -8,22 +8,27 @@ function compareByDeliveryCountThenName(a: RegionMetric, b: RegionMetric) {
   return b.deliveryCount - a.deliveryCount || a.name.localeCompare(b.name, "zh-CN");
 }
 
-function universityKey(record: DeliveryRecord) {
-  return `${record.province}::${record.city}::${record.university}`;
+const COVERAGE_SIGNALS = ["已下单", "新增商机"] as const;
+
+function valueHasCoverageSignal(value: unknown): boolean {
+  if (typeof value === "string") return COVERAGE_SIGNALS.some((signal) => value.includes(signal));
+  if (Array.isArray(value)) return value.some(valueHasCoverageSignal);
+  if (typeof value === "object" && value !== null) return Object.values(value).some(valueHasCoverageSignal);
+  return false;
 }
 
-function validTotal(value: number | undefined) {
-  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
-}
-
-function getMaxTotal(records: DeliveryRecord[], key: "provinceUniversityTotal" | "cityUniversityTotal") {
-  const totals = records.map((record) => validTotal(record[key])).filter((value): value is number => value !== undefined);
-  return totals.length > 0 ? Math.max(...totals) : undefined;
-}
-
-function normalizeTotal(total: number | undefined, covered: number) {
-  if (total === undefined) return undefined;
-  return Math.max(total, covered);
+function isCoveredRecord(record: DeliveryRecord) {
+  // 同一条记录同时出现“已下单”和“新增商机”时，按一条覆盖记录计数。
+  return valueHasCoverageSignal([
+    record.customerStatus,
+    record.coverageStatus,
+    record.projectStage,
+    record.purchaseTags,
+    record.productTags,
+    record.deliveryContent,
+    record.notes,
+    record.extraJson,
+  ]);
 }
 
 function buildRegionMetric(
@@ -33,11 +38,8 @@ function buildRegionMetric(
   province?: string,
   city?: string,
 ): RegionMetric {
-  const universityCount = new Set(records.map(universityKey)).size;
-  const rawTotal = city
-    ? getMaxTotal(denominatorRecords, "cityUniversityTotal")
-    : getMaxTotal(denominatorRecords, "provinceUniversityTotal");
-  const totalUniversityCount = normalizeTotal(rawTotal, universityCount);
+  const universityCount = records.filter(isCoveredRecord).length;
+  const totalUniversityCount = denominatorRecords.length;
 
   return {
     name,
@@ -45,7 +47,7 @@ function buildRegionMetric(
     city,
     universityCount,
     totalUniversityCount,
-    coverageRate: totalUniversityCount ? universityCount / totalUniversityCount : undefined,
+    coverageRate: totalUniversityCount > 0 ? universityCount / totalUniversityCount : undefined,
     deliveryCount: records.length,
     productTags: unique(records.flatMap((item) => item.productTags)),
     purchaseTags: unique(records.flatMap((item) => item.purchaseTags)),
@@ -66,25 +68,9 @@ function groupRecordsBy(records: DeliveryRecord[], getKey: (record: DeliveryReco
   return groups;
 }
 
-function getCountryTotalUniversityCount(records: DeliveryRecord[]) {
-  const provinceGroups = groupRecordsBy(records, (record) => record.province);
-  const provinceTotals = Array.from(provinceGroups.values())
-    .map((group) => getMaxTotal(group, "provinceUniversityTotal"))
-    .filter((value): value is number => value !== undefined);
-
-  if (provinceTotals.length > 0) return provinceTotals.reduce((sum, value) => sum + value, 0);
-
-  const cityGroups = groupRecordsBy(records, (record) => `${record.province}::${record.city}`);
-  const cityTotals = Array.from(cityGroups.values())
-    .map((group) => getMaxTotal(group, "cityUniversityTotal"))
-    .filter((value): value is number => value !== undefined);
-
-  return cityTotals.length > 0 ? cityTotals.reduce((sum, value) => sum + value, 0) : undefined;
-}
-
 export function buildCoverageSummary(records: DeliveryRecord[], denominatorRecords: DeliveryRecord[] = records): CoverageSummary {
-  const universityCount = new Set(records.map(universityKey)).size;
-  const totalUniversityCount = normalizeTotal(getCountryTotalUniversityCount(denominatorRecords), universityCount);
+  const universityCount = records.filter(isCoveredRecord).length;
+  const totalUniversityCount = denominatorRecords.length;
 
   return {
     provinceCount: new Set(records.map((item) => item.province)).size,
@@ -94,7 +80,7 @@ export function buildCoverageSummary(records: DeliveryRecord[], denominatorRecor
     productCount: new Set(records.flatMap((item) => item.productTags).filter(Boolean)).size,
     purchaseTagCount: new Set(records.flatMap((item) => item.purchaseTags).filter(Boolean)).size,
     totalUniversityCount,
-    coverageRate: totalUniversityCount ? universityCount / totalUniversityCount : undefined,
+    coverageRate: totalUniversityCount > 0 ? universityCount / totalUniversityCount : undefined,
   };
 }
 

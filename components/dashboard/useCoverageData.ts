@@ -64,8 +64,8 @@ export function useCoverageData(options: UseCoverageDataOptions = {}) {
   const filteredRecords = useMemo(() => filterDeliveries(records, filters), [filters, records]);
   const productOptions = useMemo(() => getProductOptions(records), [records]);
   const purchaseOptions = useMemo(() => getPurchaseOptions(records), [records]);
-  const summary = useMemo(() => buildCoverageSummary(filteredRecords, records), [filteredRecords, records]);
-  const provinceMetrics = useMemo(() => groupByProvince(filteredRecords, records), [filteredRecords, records]);
+  const summary = useMemo(() => buildCoverageSummary(filteredRecords), [filteredRecords]);
+  const provinceMetrics = useMemo(() => groupByProvince(filteredRecords), [filteredRecords]);
 
   return {
     records,

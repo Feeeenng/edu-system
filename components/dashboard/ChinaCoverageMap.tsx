@@ -16,6 +16,14 @@ const MAP_NAME = "edu-china";
 const REGISTERED_MAPS = new Set<string>();
 type MapJsonModule = { default: unknown };
 type GeoLabelFormatterParams = { name?: string };
+type MapLayout = {
+  center: [string, string];
+  size: string;
+  aspectScale: number;
+  labelFontSize: number;
+  showLabel: boolean;
+  boundingCoords?: [[number, number], [number, number]];
+};
 
 const SHORT_REGION_NAMES: Record<string, string> = {
   北京市: "北京",
@@ -126,24 +134,86 @@ function buildVisualMapPieces(useCoverageRate: boolean): PiecewiseVisualMapCompo
   // 低数据量筛选时使用分段色阶，避免连续浅色渐变让少量覆盖区域不可见。
   if (useCoverageRate) {
     return [
-      { value: 0, label: "0%", color: "#d1d5db" },
-      { gt: 0, lt: 5, label: "< 5%", color: "#ef4444" },
-      { gte: 5, lt: 10, label: "5% - 10%", color: "#fde68a" },
-      { gte: 10, lt: 20, label: "10% - 20%", color: "#facc15" },
-      { gte: 20, lt: 30, label: "20% - 30%", color: "#bef264" },
-      { gte: 30, lt: 40, label: "30% - 40%", color: "#86efac" },
-      { gte: 40, lt: 50, label: "40% - 50%", color: "#4ade80" },
-      { gte: 50, label: "> 50%", color: "#16a34a" },
+      { gte: 20, label: ">= 20%", color: "#ef4444" },
+      { gte: 10, lt: 20, label: "10% - 20%", color: "#fb923c" },
+      { gte: 5, lt: 10, label: "5% - 10%", color: "#fde047" },
+      { gt: 0, lt: 5, label: "0% - 5%", color: "#bef264" },
+      { value: 0, label: "0%", color: "#73c763" },
+      { value: -1, label: "无数据", color: "#d1d5db" },
     ];
   }
 
   return [
-    { value: 0, label: "0", color: "#d1d5db" },
+    { value: 0, label: "无数据", color: "#d1d5db" },
     { gt: 0, lte: 1, label: "1", color: "#38bdf8" },
     { gt: 1, lte: 3, label: "2 - 3", color: "#2563eb" },
     { gt: 3, lte: 6, label: "4 - 6", color: "#1d4ed8" },
     { gt: 6, label: "> 6", color: "#0f172a" },
   ];
+}
+
+function getMapLayout(mapName: string): MapLayout {
+  const isCountryMap = mapName === MAP_NAME;
+  const isHainanMap = mapName === getProvinceMapName("海南省");
+
+  if (isHainanMap) {
+    return {
+      center: ["50%", "50%"],
+      size: "102%",
+      aspectScale: 1,
+      labelFontSize: 8,
+      showLabel: false,
+      // 海南省 GeoJSON 包含三沙远海范围，这里聚焦主岛，避免主图在浏览器里被压小。
+      boundingCoords: [
+        [108.35, 20.35],
+        [111.25, 18.05],
+      ],
+    };
+  }
+
+  return {
+    center: isCountryMap ? ["50%", "52%"] : ["50%", "53%"],
+    size: isCountryMap ? "104%" : "94%",
+    aspectScale: isCountryMap ? 0.82 : 0.86,
+    labelFontSize: isCountryMap ? 10 : 11,
+    showLabel: true,
+  };
+}
+
+function buildVisualMapOption(useCoverageRate: boolean, maxDeliveryCount: number): PiecewiseVisualMapComponentOption {
+  if (useCoverageRate) {
+    return {
+      type: "piecewise",
+      show: true,
+      left: 18,
+      bottom: 18,
+      orient: "vertical",
+      itemWidth: 13,
+      itemHeight: 13,
+      itemGap: 7,
+      textStyle: { color: "#475569", fontSize: 11 },
+      pieces: buildVisualMapPieces(true),
+      outOfRange: { color: "#d1d5db" },
+      calculable: false,
+    };
+  }
+
+  return {
+    type: "piecewise",
+    show: true,
+    min: 0,
+    max: maxDeliveryCount,
+    left: 18,
+    bottom: 18,
+    orient: "vertical",
+    itemWidth: 13,
+    itemHeight: 13,
+    itemGap: 7,
+    textStyle: { color: "#475569", fontSize: 11 },
+    pieces: buildVisualMapPieces(false),
+    outOfRange: { color: "#e2e8f0" },
+    calculable: false,
+  };
 }
 
 function getRegionLabel(name?: string) {
@@ -168,7 +238,7 @@ function getTooltipName(params: TooltipComponentFormatterCallbackParams) {
 function buildMapOption(metrics: RegionMetric[], mapName: string, selectedRegion?: string): EChartsOption {
   const hasRate = metrics.some((metric) => metric.coverageRate !== undefined);
   const maxDeliveryCount = hasRate ? 100 : getMaxDeliveryCount(metrics);
-  const isCountryMap = mapName === MAP_NAME;
+  const mapLayout = getMapLayout(mapName);
   return {
     backgroundColor: "transparent",
     animation: true,
@@ -187,52 +257,38 @@ function buildMapOption(metrics: RegionMetric[], mapName: string, selectedRegion
         if (!metric) return `${name}<br/>暂无案例`;
         return [
           metric.name,
-          `覆盖高校：${formatCoverage(metric)}`,
+          `覆盖数：${formatCoverage(metric)}`,
           `覆盖率：${formatCoverageRate(metric)}`,
           `交付案例：${metric.deliveryCount}`,
         ].join("<br/>");
       },
     },
-    visualMap: {
-      type: "piecewise",
-      show: true,
-      min: 0,
-      max: maxDeliveryCount,
-      left: 18,
-      bottom: 18,
-      orient: "vertical",
-      itemWidth: 13,
-      itemHeight: 13,
-      itemGap: 7,
-      textStyle: { color: "#475569", fontSize: 11 },
-      pieces: buildVisualMapPieces(hasRate),
-      outOfRange: { color: "#e2e8f0" },
-      calculable: false,
-    },
+    visualMap: buildVisualMapOption(hasRate, maxDeliveryCount),
     geo: {
       map: mapName,
       roam: false,
-      layoutCenter: isCountryMap ? ["50%", "52%"] : ["50%", "53%"],
-      layoutSize: isCountryMap ? "104%" : "94%",
-      aspectScale: isCountryMap ? 0.82 : 0.86,
+      layoutCenter: mapLayout.center,
+      layoutSize: mapLayout.size,
+      aspectScale: mapLayout.aspectScale,
+      boundingCoords: mapLayout.boundingCoords,
       label: {
-        show: true,
+        show: mapLayout.showLabel,
         color: "#334155",
-        fontSize: isCountryMap ? 10 : 11,
+        fontSize: mapLayout.labelFontSize,
         formatter: (params: GeoLabelFormatterParams) => getRegionLabel(params.name),
         overflow: "truncate",
       },
       itemStyle: {
         borderColor: "#ffffff",
         borderWidth: 1.2,
-        areaColor: "#e2e8f0",
+        areaColor: "#d1d5db",
       },
       emphasis: {
-        label: { color: "#0f172a", fontWeight: 700 },
+        label: { show: true, color: "#0f172a", fontWeight: 700 },
         itemStyle: { areaColor: "#f59e0b" },
       },
       select: {
-        label: { color: "#0f172a", fontWeight: 800 },
+        label: { show: true, color: "#0f172a", fontWeight: 800 },
         itemStyle: { areaColor: "#fbbf24" },
       },
       selectedMode: "single",

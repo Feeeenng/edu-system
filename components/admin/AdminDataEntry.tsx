@@ -32,6 +32,7 @@ type EntryFormState = {
   cityUniversityTotal: string;
   productTags: string;
   purchaseTags: string;
+  coverageStatus: string;
   equipmentDetails: string;
   painPoints: string;
   deliveryContent: string;
@@ -60,6 +61,7 @@ const EMPTY_ENTRY_FORM: EntryFormState = {
   cityUniversityTotal: "",
   productTags: "",
   purchaseTags: "",
+  coverageStatus: "",
   equipmentDetails: "",
   painPoints: "",
   deliveryContent: "",
@@ -71,6 +73,15 @@ const EMPTY_FILTERS: FilterState = {
   city: "",
   product: "",
 };
+
+const COVERAGE_STATUS_OPTIONS: Array<NonNullable<DeliveryPayload["coverageStatus"]>> = [
+  "已下单",
+  "新增商机",
+  "跟进中",
+  "未覆盖",
+  "暂停",
+  "已覆盖",
+];
 
 function splitList(value: string) {
   return value
@@ -120,6 +131,7 @@ function buildFormFromRecord(record: DeliveryRecord): EntryFormState {
     cityUniversityTotal: formatOptionalNumber(record.cityUniversityTotal),
     productTags: joinList(record.productTags),
     purchaseTags: joinList(record.purchaseTags),
+    coverageStatus: record.coverageStatus ?? "",
     equipmentDetails: joinList(record.equipmentDetails),
     painPoints: joinList(record.painPoints),
     deliveryContent: record.deliveryContent ?? "",
@@ -142,6 +154,7 @@ function recordMatchesFilters(record: DeliveryRecord, filters: FilterState) {
     record.province,
     record.city,
     record.university,
+    record.coverageStatus ?? "",
     record.deliveryContent ?? "",
     ...record.productTags,
     ...record.purchaseTags,
@@ -163,6 +176,9 @@ function buildPayload(form: EntryFormState, base?: DeliveryRecord): DeliveryPayl
     cityUniversityTotal: parseOptionalNumber(form.cityUniversityTotal),
     productTags: splitList(form.productTags),
     purchaseTags: splitList(form.purchaseTags),
+    coverageStatus: form.coverageStatus.trim()
+      ? (form.coverageStatus.trim() as DeliveryPayload["coverageStatus"])
+      : undefined,
     equipmentDetails: splitList(form.equipmentDetails),
     painPoints: splitList(form.painPoints),
     deliveryContent: form.deliveryContent.trim() || undefined,
@@ -843,6 +859,21 @@ export function AdminDataEntry() {
               />
             </label>
             <label>
+              <span>覆盖状态</span>
+              <select
+                value={entryForm.coverageStatus}
+                disabled={!adminUnlocked}
+                onChange={(event) => updateField("coverageStatus")(event.target.value)}
+              >
+                <option value="">选择状态</option>
+                {COVERAGE_STATUS_OPTIONS.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
               <span>设备明细</span>
               <input
                 value={entryForm.equipmentDetails}
@@ -964,6 +995,7 @@ export function AdminDataEntry() {
                 <th className="col-total">城市高校总数</th>
                 <th>产品标签</th>
                 <th>采购标签</th>
+                <th className="col-status">覆盖状态</th>
                 <th>设备明细</th>
                 <th>业务痛点</th>
                 <th>交付内容</th>
@@ -973,11 +1005,11 @@ export function AdminDataEntry() {
             <tbody>
               {records.length === 0 ? (
                 <tr className="empty-row">
-                  <td colSpan={12}>暂无交付记录，可通过上方录入控制台新增或下载模板后批量导入 CSV。</td>
+                  <td colSpan={13}>暂无交付记录，可通过上方录入控制台新增或下载模板后批量导入 CSV。</td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr className="empty-row">
-                  <td colSpan={12}>没有匹配当前筛选条件的交付记录。</td>
+                  <td colSpan={13}>没有匹配当前筛选条件的交付记录。</td>
                 </tr>
               ) : (
                 filteredRecords.map((record) => {
@@ -1064,6 +1096,20 @@ export function AdminDataEntry() {
                             />
                           </td>
                           <td>
+                            <select
+                              value={editingForm.coverageStatus}
+                              disabled={!adminUnlocked}
+                              onChange={(event) => updateEditingField(record.id, "coverageStatus", event.target.value)}
+                            >
+                              <option value="">未填写</option>
+                              {COVERAGE_STATUS_OPTIONS.map((status) => (
+                                <option key={status} value={status}>
+                                  {status}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
                             <input
                               value={editingForm.equipmentDetails}
                               disabled={!adminUnlocked}
@@ -1096,6 +1142,7 @@ export function AdminDataEntry() {
                           <td>{record.cityUniversityTotal ?? "-"}</td>
                           <td>{joinList(record.productTags)}</td>
                           <td>{joinList(record.purchaseTags)}</td>
+                          <td>{record.coverageStatus || "-"}</td>
                           <td>{joinList(record.equipmentDetails)}</td>
                           <td>{joinList(record.painPoints)}</td>
                           <td>{record.deliveryContent || "-"}</td>

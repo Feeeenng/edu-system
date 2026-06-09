@@ -6,7 +6,7 @@ export type DeliveryRecord = {
   longitude?: number;
   latitude?: number;
   customerStatus?: string;
-  coverageStatus?: "已覆盖" | "跟进中" | "未覆盖" | "暂停";
+  coverageStatus?: "已覆盖" | "跟进中" | "未覆盖" | "暂停" | "已下单" | "新增商机";
   projectStage?: "线索" | "测试" | "方案" | "交付" | "运维";
   deliveryDate?: string;
   owner?: string;
