@@ -96,6 +96,7 @@ function cleanNumber(value: number | undefined) {
 export function normalizeDeliveryPayload(payload: DeliveryPayload): DeliveryPayload {
   return {
     ...payload,
+    schoolId: cleanOptionalText(payload.schoolId),
     province: normalizeProvinceName(payload.province),
     city: cleanText(payload.city),
     university: cleanText(payload.university),

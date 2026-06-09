@@ -169,6 +169,7 @@ export function parseDeliveryCsv(csvText: string): CsvParseResult {
     }
 
     records.push({
+      schoolId: trimText(normalized.schoolId),
       province: normalized.province!.trim(),
       city: normalized.city!.trim(),
       university: normalized.university!.trim(),

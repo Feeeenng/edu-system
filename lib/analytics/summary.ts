@@ -9,18 +9,36 @@ function compareByDeliveryCountThenName(a: RegionMetric, b: RegionMetric) {
   return b.deliveryCount - a.deliveryCount || a.name.localeCompare(b.name, "zh-CN");
 }
 
+function schoolKey(record: DeliveryRecord) {
+  return record.schoolId?.trim() || `${record.province}::${record.city}::${record.university}`;
+}
+
 function isCoveredRecord(record: DeliveryRecord) {
-  // 同一条记录同时出现“已下单”和“新增商机”时，按一条覆盖记录计数。
-  return isCoveredValue([
-    record.customerStatus,
-    record.coverageStatus,
-    record.projectStage,
-    record.purchaseTags,
-    record.productTags,
-    record.deliveryContent,
-    record.notes,
-    record.extraJson,
-  ]);
+  // 产品/采购标签表示该学校已有业务覆盖；同一学校多条记录只计 1 次。
+  return (
+    record.productTags.length > 0 ||
+    record.purchaseTags.length > 0 ||
+    isCoveredValue([
+      record.customerStatus,
+      record.coverageStatus,
+      record.projectStage,
+      record.deliveryContent,
+      record.notes,
+      record.extraJson,
+    ])
+  );
+}
+
+function countUniqueSchools(records: DeliveryRecord[]) {
+  return new Set(records.map(schoolKey)).size;
+}
+
+function countCoveredSchools(records: DeliveryRecord[]) {
+  const coveredSchools = new Set<string>();
+  for (const record of records) {
+    if (isCoveredRecord(record)) coveredSchools.add(schoolKey(record));
+  }
+  return coveredSchools.size;
 }
 
 function buildRegionMetric(
@@ -30,8 +48,8 @@ function buildRegionMetric(
   province?: string,
   city?: string,
 ): RegionMetric {
-  const universityCount = records.filter(isCoveredRecord).length;
-  const totalUniversityCount = denominatorRecords.length;
+  const universityCount = countCoveredSchools(records);
+  const totalUniversityCount = countUniqueSchools(denominatorRecords);
 
   return {
     name,
@@ -61,8 +79,8 @@ function groupRecordsBy(records: DeliveryRecord[], getKey: (record: DeliveryReco
 }
 
 export function buildCoverageSummary(records: DeliveryRecord[], denominatorRecords: DeliveryRecord[] = records): CoverageSummary {
-  const universityCount = records.filter(isCoveredRecord).length;
-  const totalUniversityCount = denominatorRecords.length;
+  const universityCount = countCoveredSchools(records);
+  const totalUniversityCount = countUniqueSchools(denominatorRecords);
 
   return {
     provinceCount: new Set(records.map((item) => item.province)).size,

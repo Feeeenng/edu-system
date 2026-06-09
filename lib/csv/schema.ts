@@ -7,6 +7,7 @@ export type CsvColumn = {
 };
 
 export const CSV_COLUMNS: CsvColumn[] = [
+  { key: "schoolId", label: "学校ID", aliases: ["高校ID", "学校编号", "高校编号", "schoolId"] },
   { key: "province", label: "省份", aliases: ["province"] },
   { key: "city", label: "地区/城市", aliases: ["城市", "地区", "city"] },
   { key: "university", label: "高校名称", aliases: ["高校", "学校", "university"] },

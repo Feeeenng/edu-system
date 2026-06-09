@@ -792,6 +792,31 @@
   white-space: nowrap;
 }
 
+.case-heading-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.case-heading-tools select {
+  min-height: 34px;
+  max-width: 170px;
+  border: 1px solid var(--dash-blue-200);
+  border-radius: 8px;
+  padding: 0 9px;
+  color: var(--dash-blue-900);
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+  outline: 0;
+}
+
+.case-heading-tools select:focus-visible {
+  border-color: var(--dash-blue-800);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
 .university-list {
   display: grid;
   align-content: start;

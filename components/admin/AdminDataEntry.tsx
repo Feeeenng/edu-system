@@ -26,6 +26,7 @@ import type { DeliveryPayload, DeliveryRecord } from "@/lib/types";
 import "./admin-data-entry.css";
 
 type EntryFormState = {
+  schoolId: string;
   province: string;
   city: string;
   university: string;
@@ -55,6 +56,7 @@ type AdminSessionPayload = {
 };
 
 const EMPTY_ENTRY_FORM: EntryFormState = {
+  schoolId: "",
   province: "",
   city: "",
   university: "",
@@ -119,6 +121,7 @@ function validateForm(form: EntryFormState) {
 function buildFormFromRecord(record: DeliveryRecord): EntryFormState {
   return {
     province: record.province,
+    schoolId: record.schoolId ?? "",
     city: record.city,
     university: record.university,
     provinceUniversityTotal: formatOptionalNumber(record.provinceUniversityTotal),
@@ -147,6 +150,7 @@ function recordMatchesFilters(record: DeliveryRecord, filters: FilterState) {
   return [
     record.province,
     record.city,
+    record.schoolId ?? "",
     record.university,
     record.coverageStatus ?? "",
     record.deliveryContent ?? "",
@@ -163,6 +167,7 @@ function recordMatchesFilters(record: DeliveryRecord, filters: FilterState) {
 function buildPayload(form: EntryFormState, base?: DeliveryRecord): DeliveryPayload {
   return {
     ...base,
+    schoolId: form.schoolId.trim() || undefined,
     province: form.province.trim(),
     city: form.city.trim(),
     university: form.university.trim(),
@@ -791,7 +796,16 @@ export function AdminDataEntry() {
                 ))}
               </select>
             </label>
-            <label className="compose-field-wide">
+            <label>
+              <span>学校ID</span>
+              <input
+                value={entryForm.schoolId}
+                disabled={!adminUnlocked}
+                placeholder="如 SCHOOL-0001"
+                onChange={(event) => updateField("schoolId")(event.target.value)}
+              />
+            </label>
+            <label>
               <span>高校名称</span>
               <input
                 value={entryForm.university}
@@ -984,6 +998,7 @@ export function AdminDataEntry() {
                 </th>
                 <th className="col-province">省份</th>
                 <th className="col-city">城市</th>
+                <th className="col-school-id">学校ID</th>
                 <th className="col-university">高校名称</th>
                 <th className="col-total">省份高校总数</th>
                 <th className="col-total">城市高校总数</th>
@@ -999,11 +1014,11 @@ export function AdminDataEntry() {
             <tbody>
               {records.length === 0 ? (
                 <tr className="empty-row">
-                  <td colSpan={13}>暂无交付记录，可通过上方录入控制台新增或下载模板后批量导入 CSV。</td>
+                  <td colSpan={14}>暂无交付记录，可通过上方录入控制台新增或下载模板后批量导入 CSV。</td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr className="empty-row">
-                  <td colSpan={13}>没有匹配当前筛选条件的交付记录。</td>
+                  <td colSpan={14}>没有匹配当前筛选条件的交付记录。</td>
                 </tr>
               ) : (
                 filteredRecords.map((record) => {
@@ -1049,6 +1064,13 @@ export function AdminDataEntry() {
                                 </option>
                               ))}
                             </select>
+                          </td>
+                          <td>
+                            <input
+                              value={editingForm.schoolId}
+                              disabled={!adminUnlocked}
+                              onChange={(event) => updateEditingField(record.id, "schoolId", event.target.value)}
+                            />
                           </td>
                           <td>
                             <input
@@ -1129,6 +1151,7 @@ export function AdminDataEntry() {
                         <>
                           <td>{record.province}</td>
                           <td>{record.city}</td>
+                          <td>{record.schoolId || "-"}</td>
                           <td>
                             <strong>{record.university}</strong>
                           </td>

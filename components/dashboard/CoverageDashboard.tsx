@@ -20,6 +20,7 @@ import type { ReactNode } from "react";
 import { getUniversityDetail, groupByCity } from "@/lib/analytics/summary";
 import { ChinaCoverageMap } from "@/components/dashboard/ChinaCoverageMap";
 import { useCoverageData } from "@/components/dashboard/useCoverageData";
+import { isCoveredValue } from "@/lib/coverage/status";
 import { parseDeliveryCsv } from "@/lib/csv/parse";
 import { createClientProvider } from "@/lib/data/client-provider";
 import { dedupeDeliveries } from "@/lib/data/dedupe";
@@ -41,6 +42,10 @@ type ProvinceCaseGroup = {
   province: string;
   cases: UniversityDetail[];
 };
+
+function schoolKey(record: DeliveryRecord) {
+  return record.schoolId?.trim() || `${record.province}/${record.city}/${record.university}`;
+}
 
 function formatTags(tags: string[]) {
   return tags.length > 0 ? tags.join(" / ") : "暂无标签";
@@ -122,13 +127,28 @@ function getUniversityCards(records: DeliveryRecord[]) {
   return records
     .filter((record) => {
       // 同一高校可能有多次交付，首页明细按高校聚合展示。
-      const key = `${record.province}/${record.city}/${record.university}`;
+      const key = schoolKey(record);
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     })
     .map((record) => getUniversityDetail(records, record.province, record.city, record.university))
     .filter(isUniversityDetail);
+}
+
+function isCoveredRecord(record: DeliveryRecord) {
+  return (
+    record.productTags.length > 0 ||
+    record.purchaseTags.length > 0 ||
+    isCoveredValue([
+      record.customerStatus,
+      record.coverageStatus,
+      record.projectStage,
+      record.deliveryContent,
+      record.notes,
+      record.extraJson,
+    ])
+  );
 }
 
 function groupUniversityCardsByProvince(cards: UniversityDetail[]): ProvinceCaseGroup[] {
@@ -203,10 +223,12 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     direction: CoverageSortDirection;
   }>({ key: "coverageRate", direction: "desc" });
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>("coverage");
+  const [caseProvinceFilter, setCaseProvinceFilter] = useState("");
   const shellRef = useRef<HTMLElement>(null);
   const rankScopeRef = useRef<HTMLElement>(null);
   const {
     records,
+    denominatorRecords,
     filteredRecords,
     productOptions,
     purchaseOptions,
@@ -246,8 +268,8 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     [filteredRecords, selectedCity, selectedProvince],
   );
   const cityMetrics = useMemo(
-    () => (selectedProvince ? groupByCity(filteredRecords, selectedProvince) : []),
-    [filteredRecords, selectedProvince],
+    () => (selectedProvince ? groupByCity(filteredRecords, selectedProvince, denominatorRecords) : []),
+    [denominatorRecords, filteredRecords, selectedProvince],
   );
   const cityMetricMap = useMemo(() => getMetricMap(cityMetrics), [cityMetrics]);
   const mapMetrics = selectedProvince ? cityMetrics : provinceMetrics;
@@ -263,7 +285,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     () => sortCoverageMetrics(mapMetrics, coverageSort.key, coverageSort.direction),
     [coverageSort.direction, coverageSort.key, mapMetrics],
   );
-  const universityCards = useMemo(() => getUniversityCards(viewRecords), [viewRecords]);
+  const universityCards = useMemo(() => getUniversityCards(viewRecords.filter(isCoveredRecord)), [viewRecords]);
   const provinceCaseGroups = useMemo(() => groupUniversityCardsByProvince(universityCards), [universityCards]);
   const topRegions = useMemo(() => [...getRankableMetrics(mapMetrics)].sort(compareHigherCoverage).slice(0, 5), [mapMetrics]);
   const bottomRegions = useMemo(() => [...getRankableMetrics(mapMetrics)].sort(compareLowerCoverage).slice(0, 5), [mapMetrics]);
@@ -317,6 +339,13 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
     sortedRegions.length,
     universityCards.length,
   ]);
+
+  useEffect(() => {
+    if (!caseProvinceFilter) return;
+    if (!provinceCaseGroups.some((group) => group.province === caseProvinceFilter)) {
+      setCaseProvinceFilter("");
+    }
+  }, [caseProvinceFilter, provinceCaseGroups]);
 
   const openProvince = useCallback((province: string) => {
     setSelectedProvince(province);
@@ -473,9 +502,9 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
         <article className="method-card">
           <strong>统计口径</strong>
           <p>
-            分子：当前筛选下已下单 + 新增商机记录数；同一条记录同时出现两个状态时只计 1 次覆盖。
+            分子：当前筛选下已采购产品、已下单或新增商机的唯一高校数；同一高校多条记录只计 1 次。
           </p>
-          <p>分母：当前筛选下归属地出现次数；覆盖率 = 覆盖数 / 总数。</p>
+          <p>分母：当前关键词范围内高校底表总数；覆盖率 = 覆盖高校 / 高校总数。</p>
         </article>
         <div className="metric-ribbon">
           <article>
@@ -490,7 +519,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
           </article>
           <article>
             <GraduationCap size={22} aria-hidden="true" />
-            <span>归属地次数（分母）</span>
+            <span>高校总数（分母）</span>
             <strong>{activeTotalCount ?? "-"}</strong>
           </article>
           <article>
@@ -630,7 +659,9 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
             role="tabpanel"
           >
             <UniversityCasePanel
+              caseProvinceFilter={caseProvinceFilter}
               isEmpty={isEmpty}
+              onCaseProvinceFilterChange={setCaseProvinceFilter}
               provinceCaseGroups={provinceCaseGroups}
               scopeLabel={selectedCity ?? selectedProvince ?? "全国"}
               universityCards={universityCards}
@@ -675,42 +706,71 @@ type UniversityCaseCardProps = {
 };
 
 type UniversityCasePanelProps = {
+  caseProvinceFilter: string;
   isEmpty: boolean;
+  onCaseProvinceFilterChange(province: string): void;
   provinceCaseGroups: ProvinceCaseGroup[];
   scopeLabel: string;
   universityCards: UniversityDetail[];
 };
 
-function UniversityCasePanel({ isEmpty, provinceCaseGroups, scopeLabel, universityCards }: UniversityCasePanelProps) {
+function UniversityCasePanel({
+  caseProvinceFilter,
+  isEmpty,
+  onCaseProvinceFilterChange,
+  provinceCaseGroups,
+  scopeLabel,
+  universityCards,
+}: UniversityCasePanelProps) {
+  const selectedGroup = provinceCaseGroups.find((group) => group.province === caseProvinceFilter) ?? provinceCaseGroups[0];
+
   return (
     <>
       <div className="case-heading">
         <div>
           <span>{scopeLabel}高校案例</span>
-          <h2>学校设备与业务痛点</h2>
+          <h2>已覆盖学校明细</h2>
         </div>
-        <small>{universityCards.length} 所高校</small>
+        <div className="case-heading-tools">
+          <select
+            aria-label="按省份筛选高校案例"
+            disabled={provinceCaseGroups.length === 0}
+            value={selectedGroup?.province ?? ""}
+            onChange={(event) => onCaseProvinceFilterChange(event.target.value)}
+          >
+            {provinceCaseGroups.length === 0 ? (
+              <option value="">暂无省份</option>
+            ) : (
+              provinceCaseGroups.map((group) => (
+                <option key={group.province} value={group.province}>
+                  {group.province}（{group.cases.length}）
+                </option>
+              ))
+            )}
+          </select>
+          <small>{universityCards.length} 所高校</small>
+        </div>
       </div>
       <div className="university-list">
         {universityCards.length === 0 && (
           <div className="empty-case-state">
-            <strong>{isEmpty ? "暂无真实数据" : "当前筛选暂无高校案例"}</strong>
-            <p>{isEmpty ? "请从首页导入 CSV，或进入录入页新增记录。" : "可调整产品、关键词或返回上一级区域。"}</p>
+            <strong>{isEmpty ? "暂无真实数据" : "当前筛选暂无已覆盖学校"}</strong>
+            <p>{isEmpty ? "请从首页导入 CSV，或进入录入页新增记录。" : "未覆盖学校保留在地图分母中，右侧只展示已覆盖明细。"}</p>
           </div>
         )}
-        {provinceCaseGroups.map((group) => (
-          <section className="province-case-group" key={group.province} aria-label={`${group.province}高校案例`}>
+        {selectedGroup && (
+          <section className="province-case-group" key={selectedGroup.province} aria-label={`${selectedGroup.province}高校案例`}>
             <header>
-              <strong>{group.province}</strong>
-              <small>{group.cases.length} 所高校</small>
+              <strong>{selectedGroup.province}</strong>
+              <small>{selectedGroup.cases.length} 所高校</small>
             </header>
             <div className="province-case-list">
-              {group.cases.map((detail) => (
+              {selectedGroup.cases.map((detail) => (
                 <UniversityCaseCard detail={detail} key={`${detail.province}-${detail.city}-${detail.university}`} />
               ))}
             </div>
           </section>
-        ))}
+        )}
       </div>
     </>
   );
@@ -727,6 +787,7 @@ function UniversityCaseCard({ detail }: UniversityCaseCardProps) {
           <strong>{detail.university}</strong>
           <span>
             {detail.province} · {detail.city}
+            {detail.deliveries[0]?.schoolId ? ` · ${detail.deliveries[0].schoolId}` : ""}
           </span>
         </div>
         <small>{detail.deliveries.length} 条交付</small>

@@ -2,6 +2,7 @@ import type { CoverageStatus } from "@/lib/coverage/status";
 
 export type DeliveryRecord = {
   id: string;
+  schoolId?: string;
   province: string;
   city: string;
   university: string;

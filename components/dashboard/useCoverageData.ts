@@ -24,6 +24,14 @@ function getPurchaseOptions(records: DeliveryRecord[]) {
   );
 }
 
+function hasEveryTag(selected: string[], tags: string[]) {
+  return selected.length === 0 || selected.every((tag) => tags.includes(tag));
+}
+
+function matchesSelectedCoverage(record: DeliveryRecord, productTags: string[], purchaseTags: string[]) {
+  return hasEveryTag(productTags, record.productTags) && hasEveryTag(purchaseTags, record.purchaseTags);
+}
+
 export function useCoverageData(options: UseCoverageDataOptions = {}) {
   const initialRecords = options.initialRecords ?? EMPTY_RECORDS;
   const [records, setRecords] = useState<DeliveryRecord[]>(initialRecords);
@@ -61,14 +69,30 @@ export function useCoverageData(options: UseCoverageDataOptions = {}) {
     [keyword, selectedProductTags, selectedPurchaseTags],
   );
 
-  const filteredRecords = useMemo(() => filterDeliveries(records, filters), [filters, records]);
+  const denominatorRecords = useMemo(
+    () => filterDeliveries(records, { keyword }),
+    [keyword, records],
+  );
+  const filteredRecords = useMemo(
+    () =>
+      denominatorRecords.map((record) =>
+        matchesSelectedCoverage(record, selectedProductTags, selectedPurchaseTags)
+          ? record
+          : { ...record, coverageStatus: undefined, productTags: [], purchaseTags: [] },
+      ),
+    [denominatorRecords, selectedProductTags, selectedPurchaseTags],
+  );
   const productOptions = useMemo(() => getProductOptions(records), [records]);
   const purchaseOptions = useMemo(() => getPurchaseOptions(records), [records]);
-  const summary = useMemo(() => buildCoverageSummary(filteredRecords), [filteredRecords]);
-  const provinceMetrics = useMemo(() => groupByProvince(filteredRecords), [filteredRecords]);
+  const summary = useMemo(() => buildCoverageSummary(filteredRecords, denominatorRecords), [denominatorRecords, filteredRecords]);
+  const provinceMetrics = useMemo(
+    () => groupByProvince(filteredRecords, denominatorRecords),
+    [denominatorRecords, filteredRecords],
+  );
 
   return {
     records,
+    denominatorRecords,
     filteredRecords,
     productOptions,
     purchaseOptions,

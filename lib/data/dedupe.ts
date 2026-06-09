@@ -29,6 +29,7 @@ export function getDeliveryBusinessKey(delivery: DeliveryLike) {
   const normalized = normalizeDeliveryPayload(delivery);
   // 去重只看业务内容，忽略 id / updatedAt，避免重复导入同一 CSV 时生成重复案例。
   return JSON.stringify({
+    schoolId: normalizeText(normalized.schoolId),
     province: normalizeText(normalized.province),
     city: normalizeText(normalized.city),
     university: normalizeText(normalized.university),

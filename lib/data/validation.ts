@@ -25,6 +25,7 @@ const NUMBER_FIELDS: Array<[keyof DeliveryPayload, string]> = [
 ];
 
 const OPTIONAL_TEXT_FIELDS: Array<[keyof DeliveryPayload, string]> = [
+  ["schoolId", "学校ID"],
   ["updatedAt", "更新时间"],
   ["customerStatus", "客户状态"],
   ["deliveryDate", "交付日期"],
@@ -62,6 +63,7 @@ const RECORD_NUMBER_FIELDS: Array<[keyof DeliveryRecord, string]> = [
 ];
 
 const RECORD_OPTIONAL_TEXT_FIELDS: Array<[keyof DeliveryRecord, string]> = [
+  ["schoolId", "学校ID"],
   ["customerStatus", "客户状态"],
   ["deliveryDate", "交付日期"],
   ["owner", "负责人"],

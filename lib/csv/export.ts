@@ -3,6 +3,7 @@ import { CSV_COLUMNS } from "@/lib/csv/schema";
 import type { DeliveryPayload, DeliveryRecord } from "@/lib/types";
 
 const CSV_TEMPLATE_SAMPLE: DeliveryPayload = {
+  schoolId: "SCHOOL-440300-001",
   province: "广东省",
   city: "深圳市",
   university: "深圳大学",
@@ -21,7 +22,7 @@ const CSV_TEMPLATE_SAMPLE: DeliveryPayload = {
   deliveryContent: "SDDC资源池建设与EDS存储扩容",
   equipmentDetails: ["超融合节点x6", "EDS存储节点x3", "万兆交换机x2"],
   painPoints: ["VMware授权成本高", "科研数据增长快"],
-  notes: "示例行可删除后再批量填写",
+  notes: "双一流底表可只填学校ID、省份、地区/城市、高校名称；采购过SDDC的学校填写产品标签SDDC",
   extraJson: { priority: "high" },
 };
 

@@ -431,7 +431,7 @@
 
 .entry-table {
   width: 100%;
-  min-width: 1780px;
+  min-width: 1900px;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 13px;
@@ -531,6 +531,10 @@
 
 .col-university {
   width: 190px;
+}
+
+.col-school-id {
+  width: 140px;
 }
 
 .col-total {
