@@ -72,12 +72,12 @@ test("admin data entry creates a server delivery record", async ({ page }) => {
   await composePanel.locator("input").nth(2).fill("信息中心华为超融合");
   await composePanel.locator("input").nth(3).fill("2025年");
   await composePanel.locator("input").nth(4).fill("信创");
-  await composePanel.locator("input").nth(7).fill("SDDC");
-  await composePanel.locator("input").nth(8).fill("4");
-  await composePanel.locator("input").nth(9).fill("C");
-  await composePanel.locator("input").nth(10).fill("会议中心系统");
-  await composePanel.locator("input").nth(11).fill("VMware替换压力大");
-  await composePanel.locator("input").nth(12).fill("纯软件交付");
+  await composePanel.locator("input").nth(5).fill("SDDC");
+  await composePanel.locator("input").nth(6).fill("4");
+  await composePanel.locator("input").nth(7).fill("C");
+  await composePanel.locator("input").nth(8).fill("会议中心系统");
+  await composePanel.locator("input").nth(9).fill("VMware替换压力大");
+  await composePanel.locator("input").nth(10).fill("纯软件交付");
   await composePanel.getByRole("button", { name: "新增记录" }).click();
 
   const table = page.getByRole("table");

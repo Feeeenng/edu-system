@@ -16,8 +16,6 @@ export type DeliveryRecord = {
   purchaseYear?: string;
   purchaseTags: string[];
   productTags: string[];
-  provinceUniversityTotal?: number;
-  cityUniversityTotal?: number;
   resourceType?: string;
   resourceAmount?: number;
   resourceUnit?: string;

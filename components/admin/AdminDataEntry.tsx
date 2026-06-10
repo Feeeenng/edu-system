@@ -28,8 +28,6 @@ type EntryFormState = {
   schoolId: string;
   province: string;
   university: string;
-  provinceUniversityTotal: string;
-  cityUniversityTotal: string;
   purchaseYear: string;
   purchaseTags: string;
   coverageStatus: string;
@@ -63,8 +61,6 @@ const EMPTY_ENTRY_FORM: EntryFormState = {
   schoolId: "",
   province: "",
   university: "",
-  provinceUniversityTotal: "",
-  cityUniversityTotal: "",
   purchaseYear: "",
   purchaseTags: "",
   coverageStatus: "",
@@ -120,12 +116,8 @@ function validateForm(form: EntryFormState) {
     return "省份、高校名称为必填项。";
   }
 
-  if (
-    hasInvalidNumber(form.provinceUniversityTotal) ||
-    hasInvalidNumber(form.cityUniversityTotal) ||
-    hasInvalidNumber(form.resourceAmount)
-  ) {
-    return "省份高校总数、城市高校总数和资源规模必须填写数字。";
+  if (hasInvalidNumber(form.resourceAmount)) {
+    return "资源规模必须填写数字。";
   }
 
   return undefined;
@@ -136,8 +128,6 @@ function buildFormFromRecord(record: DeliveryRecord): EntryFormState {
     province: record.province,
     schoolId: record.schoolId ?? "",
     university: record.university,
-    provinceUniversityTotal: formatOptionalNumber(record.provinceUniversityTotal),
-    cityUniversityTotal: formatOptionalNumber(record.cityUniversityTotal),
     purchaseYear: record.purchaseYear ?? "",
     purchaseTags: joinList(record.purchaseTags),
     coverageStatus: record.coverageStatus ?? "",
@@ -209,8 +199,6 @@ function buildPayload(form: EntryFormState, base?: DeliveryRecord): DeliveryPayl
     province: form.province.trim(),
     city: form.province.trim(),
     university: form.university.trim(),
-    provinceUniversityTotal: parseOptionalNumber(form.provinceUniversityTotal),
-    cityUniversityTotal: parseOptionalNumber(form.cityUniversityTotal),
     customerStatus: form.customerStatus.trim() || undefined,
     purchaseYear: form.purchaseYear.trim() || undefined,
     productTags: resourceProducts,
@@ -847,26 +835,6 @@ export function AdminDataEntry() {
               <strong>资源与价值信息</strong>
             </div>
             <label>
-              <span>省份高校总数</span>
-              <input
-                value={entryForm.provinceUniversityTotal}
-                disabled={!adminUnlocked}
-                inputMode="numeric"
-                placeholder="如 49"
-                onChange={(event) => updateField("provinceUniversityTotal")(event.target.value)}
-              />
-            </label>
-            <label>
-              <span>城市高校总数</span>
-              <input
-                value={entryForm.cityUniversityTotal}
-                disabled={!adminUnlocked}
-                inputMode="numeric"
-                placeholder="可选"
-                onChange={(event) => updateField("cityUniversityTotal")(event.target.value)}
-              />
-            </label>
-            <label>
               <span>资源类型</span>
               <input
                 value={entryForm.resourceType}
@@ -1033,8 +1001,6 @@ export function AdminDataEntry() {
                 <th>客户现状</th>
                 <th>采购时间</th>
                 <th>产品标签</th>
-                <th className="col-total">省份高校总数</th>
-                <th className="col-total">城市高校总数</th>
                 <th>资源类型</th>
                 <th>资源规模</th>
                 <th>资源单位</th>
@@ -1049,11 +1015,11 @@ export function AdminDataEntry() {
             <tbody>
               {records.length === 0 ? (
                 <tr className="empty-row">
-                  <td colSpan={19}>暂无高校信息记录，可通过上方录入控制台新增或下载模板后批量导入 XLSX。</td>
+                  <td colSpan={17}>暂无高校信息记录，可通过上方录入控制台新增或下载模板后批量导入 XLSX。</td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr className="empty-row">
-                  <td colSpan={19}>没有匹配当前筛选条件的高校信息记录。</td>
+                  <td colSpan={17}>没有匹配当前筛选条件的高校信息记录。</td>
                 </tr>
               ) : (
                 filteredRecords.map((record) => {
@@ -1136,24 +1102,6 @@ export function AdminDataEntry() {
                           </td>
                           <td>
                             <input
-                              value={editingForm.provinceUniversityTotal}
-                              disabled={!adminUnlocked}
-                              inputMode="numeric"
-                              onChange={(event) =>
-                                updateEditingField(record.id, "provinceUniversityTotal", event.target.value)
-                              }
-                            />
-                          </td>
-                          <td>
-                            <input
-                              value={editingForm.cityUniversityTotal}
-                              disabled={!adminUnlocked}
-                              inputMode="numeric"
-                              onChange={(event) => updateEditingField(record.id, "cityUniversityTotal", event.target.value)}
-                            />
-                          </td>
-                          <td>
-                            <input
                               value={editingForm.resourceType}
                               disabled={!adminUnlocked}
                               onChange={(event) => updateEditingField(record.id, "resourceType", event.target.value)}
@@ -1221,8 +1169,6 @@ export function AdminDataEntry() {
                           <td>{record.customerStatus || "-"}</td>
                           <td>{record.purchaseYear || "-"}</td>
                           <td>{joinList(record.purchaseTags)}</td>
-                          <td>{record.provinceUniversityTotal ?? "-"}</td>
-                          <td>{record.cityUniversityTotal ?? "-"}</td>
                           <td>{record.resourceType || joinList(record.productTags)}</td>
                           <td>{record.resourceAmount ?? "-"}</td>
                           <td>{record.resourceUnit || "-"}</td>

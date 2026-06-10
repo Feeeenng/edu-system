@@ -146,8 +146,6 @@ export async function parseDeliveryExcel(file: File): Promise<ExcelParseResult> 
     const resourceProducts = normalizeResourceProduct(resourceType);
     const purchaseTags = splitList(normalized.purchaseTags);
     const resourceAmount = parseNumberField(normalized.resourceAmount, "资源规模", rowErrors);
-    const provinceUniversityTotal = parseNumberField(normalized.provinceUniversityTotal, "省份高校总数", rowErrors);
-    const cityUniversityTotal = parseNumberField(normalized.cityUniversityTotal, "城市高校总数", rowErrors);
     const extraJson = parseExtraJson(normalized.extraJson, rowErrors);
 
     if (rowErrors.length > 0) {
@@ -165,8 +163,6 @@ export async function parseDeliveryExcel(file: File): Promise<ExcelParseResult> 
       purchaseYear: trimText(normalized.purchaseYear),
       purchaseTags,
       productTags: resourceProducts,
-      provinceUniversityTotal,
-      cityUniversityTotal,
       resourceType,
       resourceAmount,
       resourceUnit: trimText(normalized.resourceUnit),

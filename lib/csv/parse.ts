@@ -158,8 +158,6 @@ export function parseDeliveryCsv(csvText: string): CsvParseResult {
     const rowErrors: string[] = [];
     const coverageStatus = parseCoverageStatus(normalized.coverageStatus, row, rowErrors);
     const projectStage = parseEnumField(normalized.projectStage, "项目阶段", PROJECT_STAGES, rowErrors);
-    const provinceUniversityTotal = parseNumberField(normalized.provinceUniversityTotal, "省份高校总数", rowErrors);
-    const cityUniversityTotal = parseNumberField(normalized.cityUniversityTotal, "城市高校总数", rowErrors);
     const resourceAmount = parseNumberField(normalized.resourceAmount, "资源数量", rowErrors);
     const extraJson = parseExtraJson(normalized.extraJson, rowErrors);
 
@@ -180,8 +178,6 @@ export function parseDeliveryCsv(csvText: string): CsvParseResult {
       owner: trimText(normalized.owner),
       purchaseTags: splitTags(normalized.purchaseTags),
       productTags: splitTags(normalized.productTags),
-      provinceUniversityTotal,
-      cityUniversityTotal,
       resourceType: trimText(normalized.resourceType),
       resourceAmount,
       resourceUnit: trimText(normalized.resourceUnit),

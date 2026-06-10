@@ -8,8 +8,6 @@ const createdRecord: DeliveryRecord = {
   province: "广东省",
   city: "深圳市",
   university: "测试录入大学",
-  provinceUniversityTotal: 160,
-  cityUniversityTotal: 18,
   coverageStatus: "已部署",
   customerStatus: "信息中心华为超融合+少部份VMware",
   purchaseYear: "2025年",
@@ -73,12 +71,12 @@ describe("AdminPage", () => {
     fireEvent.change(inputs[2], { target: { value: "信息中心华为超融合" } });
     fireEvent.change(inputs[3], { target: { value: "2025年" } });
     fireEvent.change(inputs[4], { target: { value: "信创" } });
-    fireEvent.change(inputs[7], { target: { value: "SDDC" } });
-    fireEvent.change(inputs[8], { target: { value: "4" } });
-    fireEvent.change(inputs[9], { target: { value: "C" } });
-    fireEvent.change(inputs[10], { target: { value: "会议中心系统" } });
-    fireEvent.change(inputs[11], { target: { value: "VMware替换压力大" } });
-    fireEvent.change(inputs[12], { target: { value: "纯软件交付" } });
+    fireEvent.change(inputs[5], { target: { value: "SDDC" } });
+    fireEvent.change(inputs[6], { target: { value: "4" } });
+    fireEvent.change(inputs[7], { target: { value: "C" } });
+    fireEvent.change(inputs[8], { target: { value: "会议中心系统" } });
+    fireEvent.change(inputs[9], { target: { value: "VMware替换压力大" } });
+    fireEvent.change(inputs[10], { target: { value: "纯软件交付" } });
     fireEvent.click(screen.getByRole("button", { name: "新增记录" }));
 
     const table = screen.getByRole("table");

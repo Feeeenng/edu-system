@@ -24,8 +24,6 @@ function createDeliveryRecord(overrides: Partial<DeliveryRecord>): DeliveryRecor
     deliveryContent: "测试交付内容",
     equipmentDetails: overrides.equipmentDetails ?? ["测试设备x1"],
     painPoints: overrides.painPoints ?? ["测试痛点"],
-    provinceUniversityTotal: overrides.provinceUniversityTotal ?? 1,
-    cityUniversityTotal: overrides.cityUniversityTotal ?? 1,
     updatedAt: "2026-06-05T10:00:00+08:00",
     ...overrides,
   };

@@ -14,8 +14,6 @@ const CSV_TEMPLATE_SAMPLE: DeliveryPayload = {
   owner: "张三",
   purchaseTags: ["VMware替换", "信创"],
   productTags: ["SDDC", "EDS"],
-  provinceUniversityTotal: 160,
-  cityUniversityTotal: 18,
   resourceType: "超融合资源",
   resourceAmount: 12,
   resourceUnit: "节点",

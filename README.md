@@ -88,7 +88,6 @@ create index if not exists deliveries_updated_at_idx
 
 - 学校ID、省份、高校名称、覆盖状态
 - 客户现状、采购时间（年份）、产品标签
-- 省份高校总数、城市高校总数
 - 资源类型（SDDC/EDS/aDesk/AIBuilder）、资源规模、资源单位
 - 业务场景、核心价值点、设备型号、中标链接、备注、扩展字段JSON
 

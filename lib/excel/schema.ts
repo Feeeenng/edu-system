@@ -23,8 +23,6 @@ export const EXCEL_COLUMNS: ExcelColumn[] = [
     aliases: ["采购标签", "产品标签", "purchaseTags"],
     width: 52,
   },
-  { key: "provinceUniversityTotal", label: "省份高校总数", aliases: ["省高校总数", "provinceUniversityTotal"], width: 18 },
-  { key: "cityUniversityTotal", label: "城市高校总数", aliases: ["市高校总数", "cityUniversityTotal"], width: 16 },
   {
     key: "resourceType",
     label: "资源类型（SDDC/EDS/aDesk/AIBuilder）",

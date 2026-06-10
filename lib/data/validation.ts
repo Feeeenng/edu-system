@@ -19,8 +19,6 @@ const TAG_FIELDS: Array<[keyof DeliveryPayload, string]> = [
 const NUMBER_FIELDS: Array<[keyof DeliveryPayload, string]> = [
   ["longitude", "经度"],
   ["latitude", "纬度"],
-  ["provinceUniversityTotal", "省份高校总数"],
-  ["cityUniversityTotal", "城市高校总数"],
   ["resourceAmount", "资源数量"],
 ];
 
@@ -62,8 +60,6 @@ const RECORD_OPTIONAL_ARRAY_FIELDS: Array<[keyof DeliveryRecord, string]> = [
 const RECORD_NUMBER_FIELDS: Array<[keyof DeliveryRecord, string]> = [
   ["longitude", "经度"],
   ["latitude", "纬度"],
-  ["provinceUniversityTotal", "省份高校总数"],
-  ["cityUniversityTotal", "城市高校总数"],
   ["resourceAmount", "资源数量"],
 ];
 
