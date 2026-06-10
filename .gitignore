@@ -9,5 +9,5 @@ test-results/
 playwright-report/
 .env*
 !.env.example
-data/deliveries.local.json
+data/*
 .vercel
