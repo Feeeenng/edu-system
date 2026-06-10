@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminRequest } from "@/lib/api/admin-auth";
-import { dedupeDeliveries } from "@/lib/data/dedupe";
+import { dedupeDeliveries, getDeliveryBusinessKey } from "@/lib/data/dedupe";
 import { createDeliveryRecord } from "@/lib/data/normalize";
 import { mutateServerRecords, readServerRecords } from "@/lib/data/server-store";
 import { validateDeliveryPayload, validateDeliveryPayloadArray } from "@/lib/data/validation";
@@ -74,7 +74,10 @@ export async function PUT(request: Request) {
         throw statusError("记录不存在", 404);
       }
 
-      return records.map((record) => (record.id === payload.id ? updated : record));
+      const updatedKey = getDeliveryBusinessKey(updated);
+      return records
+        .filter((record) => record.id === payload.id || getDeliveryBusinessKey(record) !== updatedKey)
+        .map((record) => (record.id === payload.id ? updated : record));
     });
   } catch (error) {
     if (error instanceof RouteStatusError) return jsonError(error.message, error.status);

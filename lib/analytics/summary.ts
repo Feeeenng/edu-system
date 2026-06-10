@@ -1,6 +1,5 @@
 import type { CoverageSummary, DeliveryRecord, RegionMetric, UniversityDetail } from "@/lib/types";
 import { isCoveredValue } from "@/lib/coverage/status";
-import { NATIONAL_UNIVERSITY_TOTAL, REGION_BASELINES } from "@/lib/data/region-baseline";
 
 function unique(values: string[]) {
   return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b, "zh-CN"));
@@ -11,7 +10,7 @@ function compareByDeliveryCountThenName(a: RegionMetric, b: RegionMetric) {
 }
 
 function schoolKey(record: DeliveryRecord) {
-  return record.schoolId?.trim() || `${record.province}::${record.city}::${record.university}`;
+  return record.university.replace(/[\s\u200b-\u200f\ufeff]/g, "").toLocaleLowerCase("zh-CN");
 }
 
 function isCoveredRecord(record: DeliveryRecord) {
@@ -42,14 +41,6 @@ function countCoveredSchools(records: DeliveryRecord[]) {
   return coveredSchools.size;
 }
 
-function getBaselineMetricMap() {
-  return new Map(REGION_BASELINES.map((item) => [item.province, item]));
-}
-
-function shouldUseSddcBaseline(records: DeliveryRecord[]) {
-  return records.length === 0 || records.every((record) => record.productTags.length === 0 || record.productTags.includes("SDDC"));
-}
-
 function buildRegionMetric(
   name: string,
   records: DeliveryRecord[],
@@ -57,9 +48,8 @@ function buildRegionMetric(
   province?: string,
   city?: string,
 ): RegionMetric {
-  const baseline = province && !city && shouldUseSddcBaseline(records) ? getBaselineMetricMap().get(province) : undefined;
-  const universityCount = baseline ? baseline.sddcDeployed : countCoveredSchools(records);
-  const totalUniversityCount = baseline ? baseline.total : countUniqueSchools(denominatorRecords);
+  const universityCount = countCoveredSchools(records);
+  const totalUniversityCount = countUniqueSchools(denominatorRecords);
 
   return {
     name,
@@ -89,14 +79,11 @@ function groupRecordsBy(records: DeliveryRecord[], getKey: (record: DeliveryReco
 }
 
 export function buildCoverageSummary(records: DeliveryRecord[], denominatorRecords: DeliveryRecord[] = records): CoverageSummary {
-  const useSddcBaseline = shouldUseSddcBaseline(records);
-  const universityCount = useSddcBaseline
-    ? REGION_BASELINES.reduce((sum, item) => sum + item.sddcDeployed, 0)
-    : countCoveredSchools(records);
-  const totalUniversityCount = useSddcBaseline ? NATIONAL_UNIVERSITY_TOTAL : countUniqueSchools(denominatorRecords);
+  const universityCount = countCoveredSchools(records);
+  const totalUniversityCount = countUniqueSchools(denominatorRecords);
 
   return {
-    provinceCount: useSddcBaseline ? REGION_BASELINES.length : new Set(records.map((item) => item.province)).size,
+    provinceCount: new Set(denominatorRecords.map((item) => item.province)).size,
     cityCount: new Set(records.map((item) => `${item.province}::${item.city}`)).size,
     universityCount,
     deliveryCount: records.length,
@@ -108,19 +95,6 @@ export function buildCoverageSummary(records: DeliveryRecord[], denominatorRecor
 }
 
 export function groupByProvince(records: DeliveryRecord[], denominatorRecords: DeliveryRecord[] = records): RegionMetric[] {
-  if (shouldUseSddcBaseline(records)) {
-    return REGION_BASELINES.map((baseline) => ({
-      name: baseline.province,
-      province: baseline.province,
-      universityCount: baseline.sddcDeployed,
-      totalUniversityCount: baseline.total,
-      coverageRate: baseline.total > 0 ? baseline.sddcDeployed / baseline.total : undefined,
-      deliveryCount: baseline.sddcDeployed,
-      productTags: baseline.sddcDeployed > 0 ? ["SDDC"] : [],
-      purchaseTags: [],
-    })).sort(compareByDeliveryCountThenName);
-  }
-
   const groups = groupRecordsBy(records, (record) => record.province);
   const denominatorGroups = groupRecordsBy(denominatorRecords, (record) => record.province);
   const provinces = Array.from(new Set([...groups.keys(), ...denominatorGroups.keys()]));

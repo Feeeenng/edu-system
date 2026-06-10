@@ -2,6 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { dedupeDeliveries, getDeliveryBusinessKey } from "@/lib/data/dedupe";
 import { createDeliveryRecord, normalizeDeliveryPayload } from "@/lib/data/normalize";
 import type { DeliveryPayload, DeliveryRecord } from "@/lib/types";
 
@@ -55,6 +56,24 @@ describe("data normalize", () => {
       purchaseTags: [],
       productTags: [],
     }).province).toBe("台湾省");
+  });
+
+  it("按高校名称作为唯一标志去重", () => {
+    const first = createDeliveryRecord({
+      province: "广东省",
+      city: "深圳市",
+      university: " 深圳大学 ",
+      productTags: ["SDDC"],
+    });
+    const duplicated = createDeliveryRecord({
+      province: "广东省",
+      city: "深圳市",
+      university: "深圳大学",
+      productTags: ["EDS"],
+    });
+
+    expect(getDeliveryBusinessKey(first)).toBe("深圳大学");
+    expect(dedupeDeliveries([first, duplicated])).toEqual([first]);
   });
 });
 
