@@ -466,6 +466,34 @@
   white-space: nowrap;
 }
 
+.table-sort-button {
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.table-sort-button svg {
+  flex: 0 0 auto;
+  color: #64748b;
+}
+
+.table-sort-button.is-active {
+  color: var(--admin-blue-800);
+}
+
+.table-sort-button.is-active svg {
+  color: var(--admin-blue-800);
+}
+
 .entry-table tbody tr {
   background: #ffffff;
   transition: background-color 160ms ease;
@@ -535,10 +563,6 @@
 
 .col-school-id {
   width: 140px;
-}
-
-.col-total {
-  width: 124px;
 }
 
 .col-status {

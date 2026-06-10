@@ -7,7 +7,7 @@ export function makeDelivery(overrides: Partial<DeliveryRecord>): DeliveryRecord
     city: overrides.city ?? "测试市",
     university: overrides.university ?? "测试大学",
     customerStatus: "测试客户",
-    coverageStatus: "已覆盖",
+    coverageStatus: "已部署",
     projectStage: "交付",
     deliveryDate: "2026-06-05",
     owner: "测试负责人",

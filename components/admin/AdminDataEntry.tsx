@@ -2,6 +2,7 @@
 
 import {
   ArrowLeft,
+  ArrowUpDown,
   Download,
   FileDown,
   FileUp,
@@ -51,6 +52,29 @@ type FilterState = {
   product: string;
 };
 
+type SortDirection = "asc" | "desc";
+type SortKey =
+  | "schoolId"
+  | "province"
+  | "university"
+  | "coverageStatus"
+  | "customerStatus"
+  | "purchaseYear"
+  | "purchaseTags"
+  | "resourceType"
+  | "resourceAmount"
+  | "resourceUnit"
+  | "businessScenario"
+  | "coreValue"
+  | "deviceModel"
+  | "bidLink"
+  | "notes";
+
+type SortState = {
+  key: SortKey;
+  direction: SortDirection;
+};
+
 type AdminSessionPayload = {
   configured?: boolean;
   unlocked?: boolean;
@@ -80,6 +104,11 @@ const EMPTY_FILTERS: FilterState = {
   keyword: "",
   province: "",
   product: "",
+};
+
+const DEFAULT_SORT: SortState = {
+  key: "province",
+  direction: "asc",
 };
 
 const COVERAGE_STATUS_OPTIONS = COVERAGE_STATUSES;
@@ -179,6 +208,28 @@ function recordMatchesFilters(record: DeliveryRecord, filters: FilterState) {
     .includes(keyword);
 }
 
+function getSortText(record: DeliveryRecord, key: SortKey) {
+  if (key === "purchaseTags") return joinList(record.purchaseTags);
+  if (key === "resourceAmount") return record.resourceAmount ?? "";
+  return record[key] ?? "";
+}
+
+function compareRecordsBySort(a: DeliveryRecord, b: DeliveryRecord, sort: SortState) {
+  const direction = sort.direction === "asc" ? 1 : -1;
+  const aValue = getSortText(a, sort.key);
+  const bValue = getSortText(b, sort.key);
+  const result =
+    typeof aValue === "number" || typeof bValue === "number"
+      ? Number(aValue || 0) - Number(bValue || 0)
+      : String(aValue).localeCompare(String(bValue), "zh-CN", { numeric: true, sensitivity: "base" });
+
+  return (
+    result * direction ||
+    a.province.localeCompare(b.province, "zh-CN") ||
+    a.university.localeCompare(b.university, "zh-CN", { numeric: true, sensitivity: "base" })
+  );
+}
+
 function buildPayload(form: EntryFormState, base?: DeliveryRecord): DeliveryPayload {
   const resourceProducts = splitList(form.resourceType.replace(/adesk/gi, "桌面云").replace(/AIBuilder/gi, "FastGPT"));
   let extraJson: Record<string, unknown> | undefined;
@@ -242,6 +293,30 @@ function downloadExcelRecords(records: DeliveryRecord[]) {
   downloadExcel("高校信息维护清单.xlsx", buildDeliveriesWorkbook(records));
 }
 
+type SortButtonProps = {
+  activeSort: SortState;
+  sortKey: SortKey;
+  label: string;
+  onSort(key: SortKey): void;
+};
+
+function SortButton({ activeSort, sortKey, label, onSort }: SortButtonProps) {
+  const active = activeSort.key === sortKey;
+  const directionLabel = activeSort.direction === "asc" ? "升序" : "降序";
+
+  return (
+    <button
+      aria-label={`按${label}${active ? directionLabel : "排序"}`}
+      className={active ? "table-sort-button is-active" : "table-sort-button"}
+      type="button"
+      onClick={() => onSort(sortKey)}
+    >
+      <span>{label}</span>
+      <ArrowUpDown size={13} aria-hidden="true" />
+    </button>
+  );
+}
+
 async function readAdminSessionPayload(response: Response): Promise<AdminSessionPayload> {
   const text = await response.text();
   let payload: AdminSessionPayload = {};
@@ -266,6 +341,7 @@ export function AdminDataEntry() {
   const [editingForms, setEditingForms] = useState<Record<string, EntryFormState>>({});
   const [savingId, setSavingId] = useState<string>();
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
+  const [sortState, setSortState] = useState<SortState>(DEFAULT_SORT);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [ready, setReady] = useState(false);
   const [message, setMessage] = useState("当前使用服务端数据模式，录入、导入和删除都会写入 /api/deliveries。");
@@ -287,15 +363,19 @@ export function AdminDataEntry() {
   );
   const provinceCount = useMemo(() => new Set(records.map((record) => record.province).filter(Boolean)).size, [records]);
   const deployedCount = useMemo(
-    () => records.filter((record) => record.coverageStatus === "已部署" || record.coverageStatus === "已覆盖").length,
+    () => records.filter((record) => record.coverageStatus === "已部署").length,
     [records],
   );
   const filteredRecords = useMemo(() => records.filter((record) => recordMatchesFilters(record, filters)), [filters, records]);
-  const selectedFilteredIds = useMemo(
-    () => filteredRecords.filter((record) => selectedIds.has(record.id)).map((record) => record.id),
-    [filteredRecords, selectedIds],
+  const sortedRecords = useMemo(
+    () => [...filteredRecords].sort((a, b) => compareRecordsBySort(a, b, sortState)),
+    [filteredRecords, sortState],
   );
-  const allFilteredSelected = filteredRecords.length > 0 && selectedFilteredIds.length === filteredRecords.length;
+  const selectedFilteredIds = useMemo(
+    () => sortedRecords.filter((record) => selectedIds.has(record.id)).map((record) => record.id),
+    [selectedIds, sortedRecords],
+  );
+  const allFilteredSelected = sortedRecords.length > 0 && selectedFilteredIds.length === sortedRecords.length;
 
   const getProvider = useCallback(() => {
     providerRef.current ??= createClientProvider();
@@ -387,6 +467,13 @@ export function AdminDataEntry() {
     };
   };
 
+  const updateSort = (key: SortKey) => {
+    setSortState((current) => ({
+      key,
+      direction: current.key === key && current.direction === "asc" ? "desc" : "asc",
+    }));
+  };
+
   const toggleRecordSelection = (id: string) => {
     setSelectedIds((current) => {
       const next = new Set(current);
@@ -402,7 +489,7 @@ export function AdminDataEntry() {
   const selectFilteredRecords = () => {
     setSelectedIds((current) => {
       const next = new Set(current);
-      filteredRecords.forEach((record) => next.add(record.id));
+      sortedRecords.forEach((record) => next.add(record.id));
       return next;
     });
   };
@@ -414,7 +501,7 @@ export function AdminDataEntry() {
   const clearFilteredSelection = () => {
     setSelectedIds((current) => {
       const next = new Set(current);
-      filteredRecords.forEach((record) => next.delete(record.id));
+      sortedRecords.forEach((record) => next.delete(record.id));
       return next;
     });
   };
@@ -958,7 +1045,7 @@ export function AdminDataEntry() {
             <X size={15} aria-hidden="true" />
             清空筛选
           </button>
-          <button type="button" onClick={selectFilteredRecords} disabled={!adminUnlocked || filteredRecords.length === 0}>
+          <button type="button" onClick={selectFilteredRecords} disabled={!adminUnlocked || sortedRecords.length === 0}>
             选择当前结果
           </button>
           <button type="button" onClick={clearSelection} disabled={selectedIds.size === 0}>
@@ -984,7 +1071,7 @@ export function AdminDataEntry() {
                     type="checkbox"
                     aria-label="选择当前筛选结果"
                     checked={allFilteredSelected}
-                    disabled={!adminUnlocked || filteredRecords.length === 0}
+                    disabled={!adminUnlocked || sortedRecords.length === 0}
                     onChange={(event) => {
                       if (event.target.checked) {
                         selectFilteredRecords();
@@ -994,21 +1081,51 @@ export function AdminDataEntry() {
                     }}
                   />
                 </th>
-                <th className="col-school-id">学校ID</th>
-                <th className="col-province">省份</th>
-                <th className="col-university">高校名称</th>
-                <th className="col-status">覆盖状态</th>
-                <th>客户现状</th>
-                <th>采购时间</th>
-                <th>产品标签</th>
-                <th>资源类型</th>
-                <th>资源规模</th>
-                <th>资源单位</th>
-                <th>业务场景</th>
-                <th>核心价值点</th>
-                <th>设备型号</th>
-                <th>中标链接</th>
-                <th>备注</th>
+                <th className="col-school-id">
+                  <SortButton activeSort={sortState} sortKey="schoolId" label="学校ID" onSort={updateSort} />
+                </th>
+                <th className="col-province">
+                  <SortButton activeSort={sortState} sortKey="province" label="省份" onSort={updateSort} />
+                </th>
+                <th className="col-university">
+                  <SortButton activeSort={sortState} sortKey="university" label="高校名称" onSort={updateSort} />
+                </th>
+                <th className="col-status">
+                  <SortButton activeSort={sortState} sortKey="coverageStatus" label="覆盖状态" onSort={updateSort} />
+                </th>
+                <th>
+                  <SortButton activeSort={sortState} sortKey="customerStatus" label="客户现状" onSort={updateSort} />
+                </th>
+                <th>
+                  <SortButton activeSort={sortState} sortKey="purchaseYear" label="采购时间" onSort={updateSort} />
+                </th>
+                <th>
+                  <SortButton activeSort={sortState} sortKey="purchaseTags" label="产品标签" onSort={updateSort} />
+                </th>
+                <th>
+                  <SortButton activeSort={sortState} sortKey="resourceType" label="资源类型" onSort={updateSort} />
+                </th>
+                <th>
+                  <SortButton activeSort={sortState} sortKey="resourceAmount" label="资源规模" onSort={updateSort} />
+                </th>
+                <th>
+                  <SortButton activeSort={sortState} sortKey="resourceUnit" label="资源单位" onSort={updateSort} />
+                </th>
+                <th>
+                  <SortButton activeSort={sortState} sortKey="businessScenario" label="业务场景" onSort={updateSort} />
+                </th>
+                <th>
+                  <SortButton activeSort={sortState} sortKey="coreValue" label="核心价值点" onSort={updateSort} />
+                </th>
+                <th>
+                  <SortButton activeSort={sortState} sortKey="deviceModel" label="设备型号" onSort={updateSort} />
+                </th>
+                <th>
+                  <SortButton activeSort={sortState} sortKey="bidLink" label="中标链接" onSort={updateSort} />
+                </th>
+                <th>
+                  <SortButton activeSort={sortState} sortKey="notes" label="备注" onSort={updateSort} />
+                </th>
                 <th className="col-action">操作</th>
               </tr>
             </thead>
@@ -1017,12 +1134,12 @@ export function AdminDataEntry() {
                 <tr className="empty-row">
                   <td colSpan={17}>暂无高校信息记录，可通过上方录入控制台新增或下载模板后批量导入 XLSX。</td>
                 </tr>
-              ) : filteredRecords.length === 0 ? (
+              ) : sortedRecords.length === 0 ? (
                 <tr className="empty-row">
                   <td colSpan={17}>没有匹配当前筛选条件的高校信息记录。</td>
                 </tr>
               ) : (
-                filteredRecords.map((record) => {
+                sortedRecords.map((record) => {
                   const editingForm = editingForms[record.id];
                   return (
                     <tr className={editingForm ? "is-editing-row" : undefined} key={record.id}>

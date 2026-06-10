@@ -80,17 +80,31 @@ describe("analytics", () => {
         id: "empty-tags-001",
         productTags: ["EDS", ""],
         purchaseTags: ["信创", ""],
+        coverageStatus: "未覆盖",
       }),
     ]);
 
     expect(summary.deliveryCount).toBe(sampleDeliveries.length);
     expect(summary.provinceCount).toBeGreaterThanOrEqual(5);
     expect(summary.cityCount).toBeGreaterThanOrEqual(8);
-    expect(summary.universityCount).toBeGreaterThanOrEqual(16);
+    expect(summary.universityCount).toBe(sampleDeliveries.filter((record) => record.coverageStatus === "已部署").length);
     expect(summary.productCount).toBe(4);
     expect(summary.purchaseTagCount).toBe(3);
+    expect(withoutEmptyTags.universityCount).toBe(0);
     expect(withoutEmptyTags.productCount).toBe(1);
     expect(withoutEmptyTags.purchaseTagCount).toBe(1);
+  });
+
+  it("覆盖数量只统计覆盖状态为已部署的高校", () => {
+    const summary = buildCoverageSummary([
+      makeDelivery({ id: "deployed-001", university: "已部署大学", coverageStatus: "已部署", productTags: ["SDDC"] }),
+      makeDelivery({ id: "pending-001", university: "跟进大学", coverageStatus: "跟进中", productTags: ["SDDC"] }),
+      makeDelivery({ id: "legacy-001", university: "旧状态大学", coverageStatus: "已覆盖", productTags: ["EDS"] }),
+    ]);
+
+    expect(summary.universityCount).toBe(1);
+    expect(summary.totalUniversityCount).toBe(3);
+    expect(summary.coverageRate).toBeCloseTo(1 / 3);
   });
 
   it("按省份聚合高校覆盖", () => {
@@ -100,7 +114,7 @@ describe("analytics", () => {
       makeDelivery({ id: "province-ah-001", province: "安徽省", city: "合肥市", university: "安徽大学" }),
     ]);
 
-    expect(provinces.find((item) => item.name === "广东省")?.universityCount).toBe(3);
+    expect(provinces.find((item) => item.name === "广东省")?.universityCount).toBe(2);
     expect(tiedProvinces.map((item) => item.name)).toEqual(["安徽省", "浙江省"]);
   });
 

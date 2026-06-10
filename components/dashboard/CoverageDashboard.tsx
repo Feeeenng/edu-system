@@ -19,7 +19,6 @@ import type { ReactNode } from "react";
 import { getUniversityDetail } from "@/lib/analytics/summary";
 import { ChinaCoverageMap } from "@/components/dashboard/ChinaCoverageMap";
 import { useCoverageData } from "@/components/dashboard/useCoverageData";
-import { isCoveredValue } from "@/lib/coverage/status";
 import type { DeliveryRecord, RegionMetric, UniversityDetail } from "@/lib/types";
 import "./coverage-dashboard.css";
 
@@ -132,18 +131,7 @@ function getUniversityCards(records: DeliveryRecord[]) {
 }
 
 function isCoveredRecord(record: DeliveryRecord) {
-  return (
-    record.productTags.length > 0 ||
-    record.purchaseTags.length > 0 ||
-    isCoveredValue([
-      record.customerStatus,
-      record.coverageStatus,
-      record.projectStage,
-      record.deliveryContent,
-      record.notes,
-      record.extraJson,
-    ])
-  );
+  return record.coverageStatus === "已部署";
 }
 
 function groupUniversityCardsByProvince(cards: UniversityDetail[]): ProvinceCaseGroup[] {
@@ -188,8 +176,8 @@ function buildInsightItems(topRegions: RegionMetric[], bottomRegions: RegionMetr
       ? `${best.name}${regionLevel}覆盖率最高，达到 ${formatPercent(best.coverageRate)}。`
       : "请先补充分母数据，系统才能计算覆盖率排行。",
     strongest
-      ? `${strongest.name}覆盖数 ${strongest.universityCount} 次，可作为${scopeLabel}重点样板区域。`
-      : `当前${scopeLabel}筛选下暂无已下单或新增商机记录。`,
+      ? `${strongest.name}已部署 ${strongest.universityCount} 所高校，可作为${scopeLabel}重点样板区域。`
+      : `当前${scopeLabel}筛选下暂无已部署记录。`,
     lowest
       ? `${lowest.name}${regionLevel}覆盖率最低，当前为 ${formatPercent(lowest.coverageRate)}，建议优先补强。`
       : "低覆盖区域将在导入分母后自动生成。",
@@ -412,9 +400,9 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
         <article className="method-card">
           <strong>统计口径</strong>
           <p>
-            分子：当前区域内已部署项目数；省份分母：Excel 区域内高校数量，例如北京 49 所。
+            分子：当前区域内覆盖状态为“已部署”的高校数量；分母：后端已导入的高校数量。
           </p>
-          <p>全国高校总数为 Excel 省份分母汇总的 379 所；覆盖率 = 已部署项目数 / 区域高校总数。</p>
+          <p>覆盖率 = 已部署高校数 / 当前筛选范围内高校总数，学校按高校名称去重。</p>
         </article>
         <div className="metric-ribbon">
           <article>
@@ -480,7 +468,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
               <div className="empty-state">
                 <span>等待真实数据</span>
                 <strong>请先导入真实交付数据</strong>
-                <p>请进入录入页新增记录或导入 CSV；完成后即可查看全国、省份和高校覆盖情况。</p>
+                <p>请进入录入页新增记录或导入 XLSX；完成后即可查看全国、省份和高校覆盖情况。</p>
               </div>
             )}
           </div>
@@ -607,7 +595,7 @@ function UniversityCasePanel({
       <div className="case-heading">
         <div>
           <span>{scopeLabel}高校案例</span>
-          <h2>已覆盖学校明细</h2>
+          <h2>已部署学校明细</h2>
         </div>
         <div className="case-heading-tools">
           <select
@@ -632,8 +620,8 @@ function UniversityCasePanel({
       <div className="university-list">
         {universityCards.length === 0 && (
           <div className="empty-case-state">
-            <strong>{isEmpty ? "暂无真实数据" : "当前筛选暂无已覆盖学校"}</strong>
-            <p>{isEmpty ? "请进入录入页新增记录或导入 CSV。" : "未覆盖学校保留在地图分母中，右侧只展示已覆盖明细。"}</p>
+            <strong>{isEmpty ? "暂无真实数据" : "当前筛选暂无已部署学校"}</strong>
+            <p>{isEmpty ? "请进入录入页新增记录或导入 XLSX。" : "未部署学校保留在地图分母中，右侧只展示已部署明细。"}</p>
           </div>
         )}
         {selectedGroup && (

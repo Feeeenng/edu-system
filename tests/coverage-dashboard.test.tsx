@@ -12,7 +12,7 @@ function createDeliveryRecord(overrides: Partial<DeliveryRecord>): DeliveryRecor
     city: overrides.city ?? "深圳市",
     university: overrides.university ?? "测试大学",
     customerStatus: "测试客户",
-    coverageStatus: "已覆盖",
+    coverageStatus: "已部署",
     projectStage: "交付",
     deliveryDate: "2026-06-05",
     owner: "测试负责人",
@@ -117,6 +117,6 @@ describe("CoverageDashboard", () => {
 
     await waitFor(() => expect(screen.getByText("覆盖数（分子）")).toBeInTheDocument());
     expect(screen.getByText("广东省省份覆盖率最高，达到 100%。")).toBeInTheDocument();
-    expect(screen.getByText("广东省已覆盖 1 所高校，可作为全部重点样板区域。")).toBeInTheDocument();
+    expect(screen.getByText("广东省已部署 1 所高校，可作为全部重点样板区域。")).toBeInTheDocument();
   });
 });

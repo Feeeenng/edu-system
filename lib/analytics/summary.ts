@@ -1,5 +1,4 @@
 import type { CoverageSummary, DeliveryRecord, RegionMetric, UniversityDetail } from "@/lib/types";
-import { isCoveredValue } from "@/lib/coverage/status";
 
 function unique(values: string[]) {
   return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b, "zh-CN"));
@@ -14,19 +13,8 @@ function schoolKey(record: DeliveryRecord) {
 }
 
 function isCoveredRecord(record: DeliveryRecord) {
-  // 产品/采购标签表示该学校已有业务覆盖；同一学校多条记录只计 1 次。
-  return (
-    record.productTags.length > 0 ||
-    record.purchaseTags.length > 0 ||
-    isCoveredValue([
-      record.customerStatus,
-      record.coverageStatus,
-      record.projectStage,
-      record.deliveryContent,
-      record.notes,
-      record.extraJson,
-    ])
-  );
+  // 首页覆盖口径只统计已部署学校，标签和客户现状仅用于筛选与展示，不再直接计入覆盖数。
+  return record.coverageStatus === "已部署";
 }
 
 function countUniqueSchools(records: DeliveryRecord[]) {
