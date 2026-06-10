@@ -32,6 +32,17 @@
   font-family: "Fira Sans", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .coverage-shell button,
 .coverage-shell a {
   cursor: pointer;
@@ -835,52 +846,49 @@
 }
 
 .case-panel {
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
 }
 
-.case-heading {
+.case-filter-row {
+  position: sticky;
+  top: 0;
+  z-index: 4;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  min-height: 62px;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--dash-blue-100);
+  gap: 8px;
+  min-height: 42px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(191, 219, 254, 0.72);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
 }
 
-.case-heading span {
+.case-filter-row > div {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+}
+
+.case-filter-row span {
   color: var(--dash-blue-800);
   font-size: 12px;
   font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
-.case-heading h2 {
-  margin: 3px 0 0;
+.case-filter-row strong {
   color: var(--dash-slate-900);
-  font-size: 18px;
-  line-height: 1.2;
-}
-
-.case-heading small {
-  color: var(--dash-slate-500);
-  font-size: 12px;
+  font-family: "Fira Code", "SFMono-Regular", Consolas, monospace;
+  font-size: 13px;
   font-weight: 900;
   white-space: nowrap;
 }
 
-.case-heading-tools {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.case-heading-tools select {
+.case-filter-row select {
   min-height: 34px;
-  max-width: 170px;
+  width: min(210px, 46vw);
   border: 1px solid var(--dash-blue-200);
   border-radius: 8px;
   padding: 0 9px;
@@ -891,7 +899,7 @@
   outline: 0;
 }
 
-.case-heading-tools select:focus-visible {
+.case-filter-row select:focus-visible {
   border-color: var(--dash-blue-800);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
 }
@@ -901,7 +909,7 @@
   align-content: start;
   gap: 12px;
   min-height: 0;
-  padding: 12px 14px 14px;
+  padding: 0 14px 14px;
   overflow: auto;
 }
 
@@ -912,7 +920,7 @@
 
 .province-case-group > header {
   position: sticky;
-  top: 0;
+  top: 48px;
   z-index: 2;
   display: flex;
   align-items: center;

@@ -226,7 +226,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
   }, [purchaseOptions]);
 
   const metricMap = useMemo(() => getMetricMap(provinceMetrics), [provinceMetrics]);
-  const activeScopeLabel = selectedPurchaseTags[0] ?? selectedProductTags[0] ?? "全部";
+  const activeScopeLabel = selectedPurchaseTags[0] ?? selectedProductTags[0] ?? "交付部署";
   const viewRecords = useMemo(
     () =>
       selectedProvince ? filteredRecords.filter((record) => record.province === selectedProvince) : filteredRecords,
@@ -531,7 +531,6 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
               isEmpty={isEmpty}
               onCaseProvinceFilterChange={setCaseProvinceFilter}
               provinceCaseGroups={provinceCaseGroups}
-              scopeLabel={selectedProvince ?? "全国"}
               universityCards={universityCards}
             />
           </section>
@@ -578,7 +577,6 @@ type UniversityCasePanelProps = {
   isEmpty: boolean;
   onCaseProvinceFilterChange(province: string): void;
   provinceCaseGroups: ProvinceCaseGroup[];
-  scopeLabel: string;
   universityCards: UniversityDetail[];
 };
 
@@ -587,19 +585,19 @@ function UniversityCasePanel({
   isEmpty,
   onCaseProvinceFilterChange,
   provinceCaseGroups,
-  scopeLabel,
   universityCards,
 }: UniversityCasePanelProps) {
   const selectedGroup = provinceCaseGroups.find((group) => group.province === caseProvinceFilter) ?? provinceCaseGroups[0];
 
   return (
-    <>
-      <div className="case-heading">
+    <div className="university-list">
+      <div className="case-filter-row">
         <div>
-          <span>{scopeLabel}高校案例</span>
-          <h2>已部署学校明细</h2>
+          <span>已部署高校</span>
+          <strong>{universityCards.length} 所</strong>
         </div>
-        <div className="case-heading-tools">
+        <label>
+          <span className="sr-only">按省份筛选高校案例</span>
           <select
             aria-label="按省份筛选高校案例"
             disabled={provinceCaseGroups.length === 0}
@@ -616,31 +614,28 @@ function UniversityCasePanel({
               ))
             )}
           </select>
-          <small>{universityCards.length} 所高校</small>
+        </label>
+      </div>
+      {universityCards.length === 0 && (
+        <div className="empty-case-state">
+          <strong>{isEmpty ? "暂无真实数据" : "当前筛选暂无已部署学校"}</strong>
+          <p>{isEmpty ? "请进入录入页新增记录或导入 XLSX。" : "未部署学校保留在地图分母中，右侧只展示已部署明细。"}</p>
         </div>
-      </div>
-      <div className="university-list">
-        {universityCards.length === 0 && (
-          <div className="empty-case-state">
-            <strong>{isEmpty ? "暂无真实数据" : "当前筛选暂无已部署学校"}</strong>
-            <p>{isEmpty ? "请进入录入页新增记录或导入 XLSX。" : "未部署学校保留在地图分母中，右侧只展示已部署明细。"}</p>
+      )}
+      {selectedGroup && (
+        <section className="province-case-group" key={selectedGroup.province} aria-label={`${selectedGroup.province}高校案例`}>
+          <header>
+            <strong>{selectedGroup.province}</strong>
+            <small>{selectedGroup.cases.length} 所高校</small>
+          </header>
+          <div className="province-case-list">
+            {selectedGroup.cases.map((detail) => (
+              <UniversityCaseCard detail={detail} key={`${detail.province}-${detail.city}-${detail.university}`} />
+            ))}
           </div>
-        )}
-        {selectedGroup && (
-          <section className="province-case-group" key={selectedGroup.province} aria-label={`${selectedGroup.province}高校案例`}>
-            <header>
-              <strong>{selectedGroup.province}</strong>
-              <small>{selectedGroup.cases.length} 所高校</small>
-            </header>
-            <div className="province-case-list">
-              {selectedGroup.cases.map((detail) => (
-                <UniversityCaseCard detail={detail} key={`${detail.province}-${detail.city}-${detail.university}`} />
-              ))}
-            </div>
-          </section>
-        )}
-      </div>
-    </>
+        </section>
+      )}
+    </div>
   );
 }
 

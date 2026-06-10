@@ -35,7 +35,7 @@ function matchesSelectedCoverage(record: DeliveryRecord, productTags: string[], 
 export function useCoverageData(options: UseCoverageDataOptions = {}) {
   const initialRecords = options.initialRecords ?? EMPTY_RECORDS;
   const [records, setRecords] = useState<DeliveryRecord[]>(initialRecords);
-  const [selectedProductTags, setSelectedProductTags] = useState<string[]>(["SDDC"]);
+  const [selectedProductTags, setSelectedProductTags] = useState<string[]>([]);
   const [selectedPurchaseTags, setSelectedPurchaseTags] = useState<string[]>([]);
   const [keyword, setKeyword] = useState("");
   const [loading, setLoading] = useState(true);

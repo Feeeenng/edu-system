@@ -72,7 +72,7 @@ describe("CoverageDashboard", () => {
 
     expect(screen.getByRole("heading", { name: "广东省覆盖率热力图" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "返回全国" })).toBeInTheDocument();
-    expect(screen.getByText("广东省高校案例")).toBeInTheDocument();
+    expect(screen.getByLabelText("按省份筛选高校案例")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "返回省份" })).not.toBeInTheDocument();
   });
 
@@ -80,6 +80,7 @@ describe("CoverageDashboard", () => {
     render(<CoverageDashboard initialRecords={sampleDeliveries} />);
 
     await waitFor(() => expect(screen.getByRole("button", { name: /SDDC/ })).toBeInTheDocument());
+    expect(screen.getByRole("heading", { name: "交付部署全国覆盖率热力图" })).toBeInTheDocument();
 
     act(() => screen.getByRole("button", { name: /SDDC/ }).click());
 
@@ -117,6 +118,6 @@ describe("CoverageDashboard", () => {
 
     await waitFor(() => expect(screen.getByText("覆盖数（分子）")).toBeInTheDocument());
     expect(screen.getByText("广东省省份覆盖率最高，达到 100%。")).toBeInTheDocument();
-    expect(screen.getByText("广东省已部署 1 所高校，可作为全部重点样板区域。")).toBeInTheDocument();
+    expect(screen.getByText("广东省已部署 1 所高校，可作为交付部署重点样板区域。")).toBeInTheDocument();
   });
 });

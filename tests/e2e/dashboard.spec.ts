@@ -52,7 +52,7 @@ test("dashboard coverage map supports product filtering and province selection",
 
   await page.getByRole("button", { name: /广东省/ }).first().click();
   await expect(page.getByRole("heading", { name: "广东省覆盖率热力图" })).toBeVisible();
-  await expect(page.getByText("广东省高校案例")).toBeVisible();
+  await expect(page.getByLabel("按省份筛选高校案例")).toBeVisible();
   await expect(page.getByRole("button", { name: "返回全国" })).toBeVisible();
   await expect(page.getByRole("button", { name: "返回省份" })).toHaveCount(0);
 });
