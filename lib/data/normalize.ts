@@ -76,7 +76,7 @@ const PROVINCE_NAME_ALIASES: Record<string, string> = {
 };
 
 export function normalizeProvinceName(value: string | undefined) {
-  const cleaned = cleanText(value).replace(/\s+/g, "");
+  const cleaned = cleanText(value).replace(/[\s\u200b-\u200f\ufeff]/g, "");
   return PROVINCE_NAME_ALIASES[cleaned] ?? cleaned;
 }
 
@@ -107,6 +107,7 @@ export function normalizeDeliveryPayload(payload: DeliveryPayload): DeliveryPayl
     projectStage: cleanOptionalText(payload.projectStage) as DeliveryPayload["projectStage"],
     deliveryDate: cleanOptionalText(payload.deliveryDate),
     owner: cleanOptionalText(payload.owner),
+    purchaseYear: cleanOptionalText(payload.purchaseYear),
     purchaseTags: cleanTags(payload.purchaseTags),
     productTags: cleanTags(payload.productTags),
     provinceUniversityTotal: cleanNumber(payload.provinceUniversityTotal),
@@ -114,6 +115,10 @@ export function normalizeDeliveryPayload(payload: DeliveryPayload): DeliveryPayl
     resourceType: cleanOptionalText(payload.resourceType),
     resourceAmount: cleanNumber(payload.resourceAmount),
     resourceUnit: cleanOptionalText(payload.resourceUnit),
+    businessScenario: cleanOptionalText(payload.businessScenario),
+    coreValue: cleanOptionalText(payload.coreValue),
+    deviceModel: cleanOptionalText(payload.deviceModel),
+    bidLink: cleanOptionalText(payload.bidLink),
     deliveryContent: cleanOptionalText(payload.deliveryContent),
     equipmentDetails: cleanTags(payload.equipmentDetails),
     painPoints: cleanTags(payload.painPoints),

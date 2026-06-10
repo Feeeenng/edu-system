@@ -61,25 +61,29 @@ test("admin data entry creates a server delivery record", async ({ page }) => {
   await page.request.patch("/api/deliveries", { data: [] });
   await page.goto("/admin");
 
-  await expect(page.getByRole("heading", { name: "高校交付数据录入" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "高校信息维护" })).toBeVisible();
   await expect(page.getByRole("button", { name: "新增记录" })).toBeEnabled();
 
-  const composePanel = page.getByLabel("新增高校交付记录");
+  const composePanel = page.getByLabel("新增高校信息记录");
+  await composePanel.locator("input").nth(0).fill("1");
   await composePanel.locator("select").nth(0).selectOption("广东省");
-  await expect(composePanel.locator("select").nth(1)).toBeEnabled();
-  await composePanel.locator("select").nth(1).selectOption("深圳市");
-  await composePanel.locator("input").nth(0).fill("测试录入大学");
-  await composePanel.locator("input").nth(1).fill("160");
-  await composePanel.locator("input").nth(2).fill("18");
-  await composePanel.locator("input").nth(3).fill("SDDC;EDS");
-  await composePanel.locator("input").nth(5).fill("超融合节点x3;EDS存储节点x2");
-  await composePanel.locator("input").nth(6).fill("VMware替换压力大;科研数据增长快");
+  await composePanel.locator("input").nth(1).fill("测试录入大学");
+  await composePanel.locator("select").nth(1).selectOption("已部署");
+  await composePanel.locator("input").nth(2).fill("信息中心华为超融合");
+  await composePanel.locator("input").nth(3).fill("2025年");
+  await composePanel.locator("input").nth(4).fill("信创");
+  await composePanel.locator("input").nth(7).fill("SDDC");
+  await composePanel.locator("input").nth(8).fill("4");
+  await composePanel.locator("input").nth(9).fill("C");
+  await composePanel.locator("input").nth(10).fill("会议中心系统");
+  await composePanel.locator("input").nth(11).fill("VMware替换压力大");
+  await composePanel.locator("input").nth(12).fill("纯软件交付");
   await composePanel.getByRole("button", { name: "新增记录" }).click();
 
   const table = page.getByRole("table");
   await expect(table.getByText("测试录入大学", { exact: true })).toBeVisible();
-  await expect(table.getByText("超融合节点x3 / EDS存储节点x2")).toBeVisible();
-  await expect(table.getByText("VMware替换压力大 / 科研数据增长快")).toBeVisible();
+  await expect(table.getByText("会议中心系统")).toBeVisible();
+  await expect(table.getByText("VMware替换压力大")).toBeVisible();
 
   await page.goto("/");
   await page.getByLabel("搜索高校、设备、业务痛点").fill("测试录入大学");

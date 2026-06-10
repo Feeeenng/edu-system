@@ -1,4 +1,4 @@
-// 由 data/教育行业客户运营清单.xlsx 的「双一流+重点本科」sheet 汇总生成。
+// 由 data/高校信息维护清单-模板.xlsx 汇总生成。
 // 全国高校总数由省份分母汇总得到，当前 Excel 共 379 所。
 
 export type RegionBaseline = {

@@ -6,6 +6,7 @@ export const COVERAGE_STATUSES = [
   "跟进中",
   "未覆盖",
   "暂停",
+  "已部署",
   "已下单",
   "新增商机",
   "已下单+新增商机",
@@ -65,7 +66,7 @@ export function mergeCoverageSignals(signals: CoverageSignal[]): CoverageStatus 
 
 export function normalizeCoverageStatus(value: unknown): CoverageStatus | undefined {
   if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
+  const trimmed = value.trim().replace(/^[✅➖✔✓√\-\s]+/u, "").trim();
   if (!trimmed) return undefined;
   if ((COVERAGE_STATUSES as readonly string[]).includes(trimmed)) return trimmed as CoverageStatus;
   return mergeCoverageSignals(extractCoverageSignals(trimmed));
@@ -74,7 +75,12 @@ export function normalizeCoverageStatus(value: unknown): CoverageStatus | undefi
 export function isCoveredValue(value: unknown): boolean {
   if (typeof value === "string") {
     const trimmed = value.trim();
-    return trimmed === LEGACY_COVERED_STATUS || extractCoverageSignals(trimmed).length > 0;
+    const normalized = normalizeCoverageStatus(trimmed);
+    return (
+      normalized === LEGACY_COVERED_STATUS ||
+      normalized === "已部署" ||
+      extractCoverageSignals(trimmed).length > 0
+    );
   }
 
   if (Array.isArray(value)) return value.some(isCoveredValue);

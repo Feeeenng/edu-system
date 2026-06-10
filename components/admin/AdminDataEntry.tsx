@@ -15,29 +15,34 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { buildCsvTemplate, exportDeliveriesToCsv } from "@/lib/csv/export";
-import { parseDeliveryCsv } from "@/lib/csv/parse";
 import { COVERAGE_STATUSES } from "@/lib/coverage/status";
 import { createClientProvider } from "@/lib/data/client-provider";
 import { dedupeDeliveries, getDeliveryBusinessKey } from "@/lib/data/dedupe";
 import { createDeliveryRecord } from "@/lib/data/normalize";
-import { getCityOptions, getProvinceOptions } from "@/lib/regions/china-regions";
+import { buildDeliveriesWorkbook, buildExcelTemplate, parseDeliveryExcel } from "@/lib/excel/workbook";
+import { getProvinceOptions } from "@/lib/regions/china-regions";
 import type { DeliveryPayload, DeliveryRecord } from "@/lib/types";
 import "./admin-data-entry.css";
 
 type EntryFormState = {
   schoolId: string;
   province: string;
-  city: string;
   university: string;
   provinceUniversityTotal: string;
   cityUniversityTotal: string;
-  productTags: string;
+  purchaseYear: string;
   purchaseTags: string;
   coverageStatus: string;
-  equipmentDetails: string;
-  painPoints: string;
-  deliveryContent: string;
+  customerStatus: string;
+  resourceType: string;
+  resourceAmount: string;
+  resourceUnit: string;
+  businessScenario: string;
+  coreValue: string;
+  deviceModel: string;
+  bidLink: string;
+  notes: string;
+  extraJson: string;
 };
 
 type EntryField = keyof EntryFormState;
@@ -45,7 +50,6 @@ type EntryField = keyof EntryFormState;
 type FilterState = {
   keyword: string;
   province: string;
-  city: string;
   product: string;
 };
 
@@ -58,22 +62,27 @@ type AdminSessionPayload = {
 const EMPTY_ENTRY_FORM: EntryFormState = {
   schoolId: "",
   province: "",
-  city: "",
   university: "",
   provinceUniversityTotal: "",
   cityUniversityTotal: "",
-  productTags: "",
+  purchaseYear: "",
   purchaseTags: "",
   coverageStatus: "",
-  equipmentDetails: "",
-  painPoints: "",
-  deliveryContent: "",
+  customerStatus: "",
+  resourceType: "",
+  resourceAmount: "",
+  resourceUnit: "",
+  businessScenario: "",
+  coreValue: "",
+  deviceModel: "",
+  bidLink: "",
+  notes: "",
+  extraJson: "",
 };
 
 const EMPTY_FILTERS: FilterState = {
   keyword: "",
   province: "",
-  city: "",
   product: "",
 };
 
@@ -107,12 +116,16 @@ function hasInvalidNumber(value: string) {
 }
 
 function validateForm(form: EntryFormState) {
-  if (!form.province.trim() || !form.city.trim() || !form.university.trim()) {
-    return "省份、城市、高校名称为必填项。";
+  if (!form.province.trim() || !form.university.trim()) {
+    return "省份、高校名称为必填项。";
   }
 
-  if (hasInvalidNumber(form.provinceUniversityTotal) || hasInvalidNumber(form.cityUniversityTotal)) {
-    return "省份高校总数和城市高校总数必须填写数字。";
+  if (
+    hasInvalidNumber(form.provinceUniversityTotal) ||
+    hasInvalidNumber(form.cityUniversityTotal) ||
+    hasInvalidNumber(form.resourceAmount)
+  ) {
+    return "省份高校总数、城市高校总数和资源规模必须填写数字。";
   }
 
   return undefined;
@@ -122,16 +135,22 @@ function buildFormFromRecord(record: DeliveryRecord): EntryFormState {
   return {
     province: record.province,
     schoolId: record.schoolId ?? "",
-    city: record.city,
     university: record.university,
     provinceUniversityTotal: formatOptionalNumber(record.provinceUniversityTotal),
     cityUniversityTotal: formatOptionalNumber(record.cityUniversityTotal),
-    productTags: joinList(record.productTags),
+    purchaseYear: record.purchaseYear ?? "",
     purchaseTags: joinList(record.purchaseTags),
     coverageStatus: record.coverageStatus ?? "",
-    equipmentDetails: joinList(record.equipmentDetails),
-    painPoints: joinList(record.painPoints),
-    deliveryContent: record.deliveryContent ?? "",
+    customerStatus: record.customerStatus ?? "",
+    resourceType: record.resourceType ?? joinList(record.productTags),
+    resourceAmount: formatOptionalNumber(record.resourceAmount),
+    resourceUnit: record.resourceUnit ?? "",
+    businessScenario: record.businessScenario ?? "",
+    coreValue: record.coreValue ?? "",
+    deviceModel: record.deviceModel ?? joinList(record.equipmentDetails),
+    bidLink: record.bidLink ?? "",
+    notes: record.notes ?? "",
+    extraJson: record.extraJson ? JSON.stringify(record.extraJson) : "",
   };
 }
 
@@ -141,7 +160,6 @@ function normalizeSearchText(value: string) {
 
 function recordMatchesFilters(record: DeliveryRecord, filters: FilterState) {
   if (filters.province && record.province !== filters.province) return false;
-  if (filters.city && record.city !== filters.city) return false;
   if (filters.product && !record.productTags.includes(filters.product)) return false;
 
   const keyword = normalizeSearchText(filters.keyword);
@@ -153,7 +171,14 @@ function recordMatchesFilters(record: DeliveryRecord, filters: FilterState) {
     record.schoolId ?? "",
     record.university,
     record.coverageStatus ?? "",
-    record.deliveryContent ?? "",
+    record.customerStatus ?? "",
+    record.purchaseYear ?? "",
+    record.resourceType ?? "",
+    record.businessScenario ?? "",
+    record.coreValue ?? "",
+    record.deviceModel ?? "",
+    record.bidLink ?? "",
+    record.notes ?? "",
     ...record.productTags,
     ...record.purchaseTags,
     ...(record.equipmentDetails ?? []),
@@ -165,27 +190,50 @@ function recordMatchesFilters(record: DeliveryRecord, filters: FilterState) {
 }
 
 function buildPayload(form: EntryFormState, base?: DeliveryRecord): DeliveryPayload {
+  const resourceProducts = splitList(form.resourceType.replace(/adesk/gi, "桌面云").replace(/AIBuilder/gi, "FastGPT"));
+  let extraJson: Record<string, unknown> | undefined;
+  if (form.extraJson.trim()) {
+    try {
+      const parsed = JSON.parse(form.extraJson);
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        extraJson = parsed as Record<string, unknown>;
+      }
+    } catch {
+      extraJson = base?.extraJson;
+    }
+  }
+
   return {
     ...base,
     schoolId: form.schoolId.trim() || undefined,
     province: form.province.trim(),
-    city: form.city.trim(),
+    city: form.province.trim(),
     university: form.university.trim(),
     provinceUniversityTotal: parseOptionalNumber(form.provinceUniversityTotal),
     cityUniversityTotal: parseOptionalNumber(form.cityUniversityTotal),
-    productTags: splitList(form.productTags),
+    customerStatus: form.customerStatus.trim() || undefined,
+    purchaseYear: form.purchaseYear.trim() || undefined,
+    productTags: resourceProducts,
     purchaseTags: splitList(form.purchaseTags),
     coverageStatus: form.coverageStatus.trim()
       ? (form.coverageStatus.trim() as DeliveryPayload["coverageStatus"])
       : undefined,
-    equipmentDetails: splitList(form.equipmentDetails),
-    painPoints: splitList(form.painPoints),
-    deliveryContent: form.deliveryContent.trim() || undefined,
+    resourceType: form.resourceType.trim() || undefined,
+    resourceAmount: parseOptionalNumber(form.resourceAmount),
+    resourceUnit: form.resourceUnit.trim() || undefined,
+    businessScenario: form.businessScenario.trim() || undefined,
+    coreValue: form.coreValue.trim() || undefined,
+    deviceModel: form.deviceModel.trim() || undefined,
+    bidLink: form.bidLink.trim() || undefined,
+    deliveryContent: [form.businessScenario.trim(), form.coreValue.trim()].filter(Boolean).join("；") || undefined,
+    equipmentDetails: splitList(form.deviceModel),
+    painPoints: splitList(form.coreValue),
+    notes: form.notes.trim() || undefined,
+    extraJson,
   };
 }
 
-function downloadText(filename: string, text: string) {
-  const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
+function downloadBlob(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -194,12 +242,16 @@ function downloadText(filename: string, text: string) {
   URL.revokeObjectURL(url);
 }
 
-function downloadCsv(records: DeliveryRecord[]) {
-  downloadText("高校交付记录.csv", exportDeliveriesToCsv(records));
+function downloadExcel(filename: string, workbook: ArrayBuffer) {
+  downloadBlob(filename, new Blob([workbook], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
 }
 
-function downloadCsvTemplate() {
-  downloadText("高校交付记录导入模板.csv", buildCsvTemplate());
+function downloadExcelTemplate() {
+  downloadExcel("高校信息维护清单-模板.xlsx", buildExcelTemplate());
+}
+
+function downloadExcelRecords(records: DeliveryRecord[]) {
+  downloadExcel("高校信息维护清单.xlsx", buildDeliveriesWorkbook(records));
 }
 
 async function readAdminSessionPayload(response: Response): Promise<AdminSessionPayload> {
@@ -224,12 +276,9 @@ export function AdminDataEntry() {
   const [records, setRecords] = useState<DeliveryRecord[]>([]);
   const [entryForm, setEntryForm] = useState<EntryFormState>(EMPTY_ENTRY_FORM);
   const [editingForms, setEditingForms] = useState<Record<string, EntryFormState>>({});
-  const [editingCityOptions, setEditingCityOptions] = useState<Record<string, string[]>>({});
   const [savingId, setSavingId] = useState<string>();
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
-  const [cityOptions, setCityOptions] = useState<string[]>([]);
-  const [cityLoading, setCityLoading] = useState(false);
   const [ready, setReady] = useState(false);
   const [message, setMessage] = useState("当前使用服务端数据模式，录入、导入和删除都会写入 /api/deliveries。");
   const [adminUnlocked, setAdminUnlocked] = useState(false);
@@ -249,7 +298,10 @@ export function AdminDataEntry() {
     [records],
   );
   const provinceCount = useMemo(() => new Set(records.map((record) => record.province).filter(Boolean)).size, [records]);
-  const cityCount = useMemo(() => new Set(records.map((record) => `${record.province}/${record.city}`).filter(Boolean)).size, [records]);
+  const deployedCount = useMemo(
+    () => records.filter((record) => record.coverageStatus === "已部署" || record.coverageStatus === "已覆盖").length,
+    [records],
+  );
   const filteredRecords = useMemo(() => records.filter((record) => recordMatchesFilters(record, filters)), [filters, records]);
   const selectedFilteredIds = useMemo(
     () => filteredRecords.filter((record) => selectedIds.has(record.id)).map((record) => record.id),
@@ -266,7 +318,7 @@ export function AdminDataEntry() {
     if (adminUnlocked) return true;
     setAuthDialogOpen(true);
     setAuthMessage("请先输入管理密码。");
-    setMessage("请先输入管理密码，再进行录入或维护。");
+      setMessage("请先输入管理密码，再进行录入或维护。");
     return false;
   }, [adminUnlocked]);
 
@@ -315,43 +367,11 @@ export function AdminDataEntry() {
       });
   }, [getProvider]);
 
-  useEffect(() => {
-    let active = true;
-
-    if (!entryForm.province) {
-      setCityOptions([]);
-      setCityLoading(false);
-      return () => {
-        active = false;
-      };
-    }
-
-    setCityLoading(true);
-    void getCityOptions(entryForm.province)
-      .then((cities) => {
-        if (active) setCityOptions(cities);
-      })
-      .catch(() => {
-        if (active) {
-          setCityOptions([]);
-          setMessage("城市列表读取失败，请重新选择省份。");
-        }
-      })
-      .finally(() => {
-        if (active) setCityLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [entryForm.province]);
-
   const updateField = (field: EntryField) => {
     return (value: string) => {
       setEntryForm((current) => ({
         ...current,
         [field]: value,
-        ...(field === "province" ? { city: "" } : {}),
       }));
     };
   };
@@ -365,7 +385,6 @@ export function AdminDataEntry() {
         [id]: {
           ...form,
           [field]: value,
-          ...(field === "province" ? { city: "" } : {}),
         },
       };
     });
@@ -376,7 +395,6 @@ export function AdminDataEntry() {
       setFilters((current) => ({
         ...current,
         [field]: value,
-        ...(field === "province" ? { city: "" } : {}),
       }));
     };
   };
@@ -489,14 +507,6 @@ export function AdminDataEntry() {
       ...current,
       [record.id]: buildFormFromRecord(record),
     }));
-
-    try {
-      const cities = await getCityOptions(record.province);
-      setEditingCityOptions((current) => ({ ...current, [record.id]: cities }));
-    } catch {
-      setEditingCityOptions((current) => ({ ...current, [record.id]: [] }));
-      setMessage("城市列表读取失败，仍可编辑其他字段。");
-    }
   };
 
   const cancelEditRecord = (id: string) => {
@@ -505,24 +515,6 @@ export function AdminDataEntry() {
       delete next[id];
       return next;
     });
-    setEditingCityOptions((current) => {
-      const next = { ...current };
-      delete next[id];
-      return next;
-    });
-  };
-
-  const updateEditingProvince = async (id: string, province: string) => {
-    updateEditingField(id, "province", province);
-    setEditingCityOptions((current) => ({ ...current, [id]: [] }));
-    if (!province) return;
-
-    try {
-      const cities = await getCityOptions(province);
-      setEditingCityOptions((current) => ({ ...current, [id]: cities }));
-    } catch {
-      setMessage("城市列表读取失败，请重新选择省份。");
-    }
   };
 
   const saveRecord = async (record: DeliveryRecord) => {
@@ -551,7 +543,7 @@ export function AdminDataEntry() {
 
   const deleteRecord = async (record: DeliveryRecord) => {
     if (!requireAdminUnlocked()) return;
-    if (!window.confirm(`确认删除「${record.university}」这条交付记录吗？`)) return;
+    if (!window.confirm(`确认删除「${record.university}」这条高校信息记录吗？`)) return;
 
     try {
       await getProvider().remove(record.id);
@@ -576,7 +568,7 @@ export function AdminDataEntry() {
       return;
     }
 
-    if (!window.confirm(`确认批量删除当前筛选结果中选中的 ${ids.length} 条交付记录吗？`)) return;
+    if (!window.confirm(`确认批量删除当前筛选结果中选中的 ${ids.length} 条高校信息记录吗？`)) return;
 
     try {
       const idSet = new Set(ids);
@@ -590,11 +582,10 @@ export function AdminDataEntry() {
     }
   };
 
-  const importCsv = async (file: File) => {
+  const importExcel = async (file: File) => {
     if (!requireAdminUnlocked()) return;
 
-    const text = await file.text();
-    const result = parseDeliveryCsv(text);
+    const result = await parseDeliveryExcel(file);
     if (result.errors.length > 0) {
       setMessage(result.errors.slice(0, 2).join("；"));
       return;
@@ -602,7 +593,7 @@ export function AdminDataEntry() {
 
     const nextRecords = dedupeDeliveries(result.records.map(createDeliveryRecord));
     if (nextRecords.length === 0) {
-      setMessage("CSV中没有可导入的记录，已保留现有数据。");
+      setMessage("Excel 中没有可导入的记录，已保留现有数据。");
       return;
     }
 
@@ -620,7 +611,7 @@ export function AdminDataEntry() {
           : `已导入 ${addedCount} 条记录，首页刷新后可查看。`,
       );
     } catch (importError) {
-      setMessage(importError instanceof Error ? importError.message : "CSV导入失败");
+      setMessage(importError instanceof Error ? importError.message : "Excel 导入失败");
     }
   };
 
@@ -663,17 +654,17 @@ export function AdminDataEntry() {
       <section className="admin-hero">
         <div>
           <span>Data Entry</span>
-          <h1>高校交付数据录入</h1>
-          <p>维护高校案例、产品标签、采购标签、设备明细和业务痛点，数据会同步到服务端。</p>
+          <h1>高校信息维护</h1>
+          <p>按高校信息维护清单模板维护覆盖状态、客户现状、资源类型、业务场景和设备型号，数据会同步到服务端。</p>
         </div>
         <div className="admin-actions">
           <a className="admin-action-link" href={homeHref}>
             <ArrowLeft size={16} aria-hidden="true" />
             返回首页
           </a>
-          <button type="button" onClick={downloadCsvTemplate}>
+          <button type="button" onClick={downloadExcelTemplate}>
             <FileDown size={16} aria-hidden="true" />
-            下载CSV模板
+            下载XLSX模板
           </button>
           <label
             className={`file-action${adminUnlocked ? "" : " is-disabled"}`}
@@ -684,18 +675,18 @@ export function AdminDataEntry() {
             }}
           >
             <FileUp size={16} aria-hidden="true" />
-            CSV导入
+            XLSX导入
             <input
               ref={fileRef}
               type="file"
               disabled={!adminUnlocked}
-              accept=".csv,text/csv"
-              aria-label="CSV导入"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              aria-label="XLSX导入"
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (file) {
                   if (adminUnlocked) {
-                    void importCsv(file);
+                    void importExcel(file);
                   } else {
                     requireAdminUnlocked();
                   }
@@ -708,11 +699,11 @@ export function AdminDataEntry() {
             type="button"
             onClick={() => {
               if (!requireAdminUnlocked()) return;
-              downloadCsv(records);
+              downloadExcelRecords(records);
             }}
           >
             <Download size={16} aria-hidden="true" />
-            导出CSV
+            导出XLSX
           </button>
           {adminUnlocked ? (
             <button type="button" onClick={() => void logoutAdmin()}>
@@ -733,8 +724,8 @@ export function AdminDataEntry() {
           <strong>{provinceCount}</strong>
         </div>
         <div>
-          <span>覆盖城市</span>
-          <strong>{cityCount}</strong>
+          <span>已部署</span>
+          <strong>{deployedCount}</strong>
         </div>
         <div>
           <span>当前筛选</span>
@@ -742,12 +733,12 @@ export function AdminDataEntry() {
         </div>
       </section>
 
-      <section className="entry-compose" aria-label="新增高校交付记录">
+      <section className="entry-compose" aria-label="新增高校信息记录">
         <div className="compose-heading">
           <div>
             <span>Quick Entry</span>
-            <h2>新增交付记录</h2>
-            <p>先填写高校和区域，再补充产品、采购、设备与业务痛点。</p>
+            <h2>新增高校信息</h2>
+            <p>按模板字段录入学校、覆盖状态、资源规模和业务价值信息。</p>
           </div>
           <button
             className="compose-submit"
@@ -764,8 +755,17 @@ export function AdminDataEntry() {
           <div className="compose-panel compose-panel-primary">
             <div className="compose-panel-title">
               <span>01</span>
-              <strong>高校与区域</strong>
+              <strong>学校基础信息</strong>
             </div>
+            <label>
+              <span>学校ID</span>
+              <input
+                value={entryForm.schoolId}
+                disabled={!adminUnlocked}
+                placeholder="如 1"
+                onChange={(event) => updateField("schoolId")(event.target.value)}
+              />
+            </label>
             <label>
               <span>省份</span>
               <select
@@ -782,30 +782,6 @@ export function AdminDataEntry() {
               </select>
             </label>
             <label>
-              <span>城市</span>
-              <select
-                value={entryForm.city}
-                disabled={!adminUnlocked || !entryForm.province || cityLoading}
-                onChange={(event) => updateField("city")(event.target.value)}
-              >
-                <option value="">{cityLoading ? "加载城市中" : entryForm.province ? "选择城市" : "先选省份"}</option>
-                {cityOptions.map((city) => (
-                  <option key={city} value={city}>
-                    {city}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>学校ID</span>
-              <input
-                value={entryForm.schoolId}
-                disabled={!adminUnlocked}
-                placeholder="如 SCHOOL-0001"
-                onChange={(event) => updateField("schoolId")(event.target.value)}
-              />
-            </label>
-            <label>
               <span>高校名称</span>
               <input
                 value={entryForm.university}
@@ -819,53 +795,8 @@ export function AdminDataEntry() {
           <div className="compose-panel">
             <div className="compose-panel-title">
               <span>02</span>
-              <strong>覆盖分母</strong>
+              <strong>覆盖与客户现状</strong>
             </div>
-            <label>
-              <span>省份高校总数</span>
-              <input
-                value={entryForm.provinceUniversityTotal}
-                disabled={!adminUnlocked}
-                inputMode="numeric"
-                placeholder="如 160"
-                onChange={(event) => updateField("provinceUniversityTotal")(event.target.value)}
-              />
-            </label>
-            <label>
-              <span>城市高校总数</span>
-              <input
-                value={entryForm.cityUniversityTotal}
-                disabled={!adminUnlocked}
-                inputMode="numeric"
-                placeholder="如 18"
-                onChange={(event) => updateField("cityUniversityTotal")(event.target.value)}
-              />
-            </label>
-          </div>
-
-          <div className="compose-panel compose-panel-tags">
-            <div className="compose-panel-title">
-              <span>03</span>
-              <strong>标签与交付信息</strong>
-            </div>
-            <label>
-              <span>产品标签</span>
-              <input
-                value={entryForm.productTags}
-                disabled={!adminUnlocked}
-                placeholder="SDDC;EDS;桌面云"
-                onChange={(event) => updateField("productTags")(event.target.value)}
-              />
-            </label>
-            <label>
-              <span>采购标签</span>
-              <input
-                value={entryForm.purchaseTags}
-                disabled={!adminUnlocked}
-                placeholder="VMware替换;信创;AI超融合"
-                onChange={(event) => updateField("purchaseTags")(event.target.value)}
-              />
-            </label>
             <label>
               <span>覆盖状态</span>
               <select
@@ -882,30 +813,139 @@ export function AdminDataEntry() {
               </select>
             </label>
             <label>
-              <span>设备明细</span>
+              <span>客户现状</span>
               <input
-                value={entryForm.equipmentDetails}
+                value={entryForm.customerStatus}
                 disabled={!adminUnlocked}
-                placeholder="超融合节点x3;交换机x2"
-                onChange={(event) => updateField("equipmentDetails")(event.target.value)}
+                placeholder="信息中心华为超融合+少部份VMware"
+                onChange={(event) => updateField("customerStatus")(event.target.value)}
               />
             </label>
             <label>
-              <span>业务痛点</span>
+              <span>采购时间（年份）</span>
               <input
-                value={entryForm.painPoints}
+                value={entryForm.purchaseYear}
                 disabled={!adminUnlocked}
-                placeholder="授权成本高;数据增长快"
-                onChange={(event) => updateField("painPoints")(event.target.value)}
+                placeholder="2025年"
+                onChange={(event) => updateField("purchaseYear")(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>产品标签</span>
+              <input
+                value={entryForm.purchaseTags}
+                disabled={!adminUnlocked}
+                placeholder="信创;VMware;二级学院"
+                onChange={(event) => updateField("purchaseTags")(event.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="compose-panel compose-panel-tags">
+            <div className="compose-panel-title">
+              <span>03</span>
+              <strong>资源与价值信息</strong>
+            </div>
+            <label>
+              <span>省份高校总数</span>
+              <input
+                value={entryForm.provinceUniversityTotal}
+                disabled={!adminUnlocked}
+                inputMode="numeric"
+                placeholder="如 49"
+                onChange={(event) => updateField("provinceUniversityTotal")(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>城市高校总数</span>
+              <input
+                value={entryForm.cityUniversityTotal}
+                disabled={!adminUnlocked}
+                inputMode="numeric"
+                placeholder="可选"
+                onChange={(event) => updateField("cityUniversityTotal")(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>资源类型</span>
+              <input
+                value={entryForm.resourceType}
+                disabled={!adminUnlocked}
+                placeholder="SDDC;EDS;aDesk;AIBuilder"
+                onChange={(event) => updateField("resourceType")(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>资源规模</span>
+              <input
+                value={entryForm.resourceAmount}
+                disabled={!adminUnlocked}
+                inputMode="numeric"
+                placeholder="4"
+                onChange={(event) => updateField("resourceAmount")(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>资源单位</span>
+              <input
+                value={entryForm.resourceUnit}
+                disabled={!adminUnlocked}
+                placeholder="C/TB/终端数/套"
+                onChange={(event) => updateField("resourceUnit")(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>业务场景</span>
+              <input
+                value={entryForm.businessScenario}
+                disabled={!adminUnlocked}
+                placeholder="会议中心系统"
+                onChange={(event) => updateField("businessScenario")(event.target.value)}
               />
             </label>
             <label className="compose-field-wide">
-              <span>交付内容</span>
+              <span>核心价值点</span>
               <input
-                value={entryForm.deliveryContent}
+                value={entryForm.coreValue}
                 disabled={!adminUnlocked}
-                placeholder="交付范围、阶段或备注"
-                onChange={(event) => updateField("deliveryContent")(event.target.value)}
+                placeholder="替换价值、业务收益或痛点"
+                onChange={(event) => updateField("coreValue")(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>设备型号</span>
+              <input
+                value={entryForm.deviceModel}
+                disabled={!adminUnlocked}
+                placeholder="纯软件交付"
+                onChange={(event) => updateField("deviceModel")(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>中标链接</span>
+              <input
+                value={entryForm.bidLink}
+                disabled={!adminUnlocked}
+                placeholder="https://..."
+                onChange={(event) => updateField("bidLink")(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>备注</span>
+              <input
+                value={entryForm.notes}
+                disabled={!adminUnlocked}
+                placeholder="补充说明"
+                onChange={(event) => updateField("notes")(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>扩展字段JSON</span>
+              <input
+                value={entryForm.extraJson}
+                disabled={!adminUnlocked}
+                placeholder='{"priority":"high"}'
+                onChange={(event) => updateField("extraJson")(event.target.value)}
               />
             </label>
           </div>
@@ -916,7 +956,7 @@ export function AdminDataEntry() {
         <div className="workbench-heading">
           <div>
             <h2>数据维护表</h2>
-            <p>支持搜索、筛选、行内编辑、批量选择和删除；多值字段用分号、顿号或斜杠分隔。</p>
+            <p>支持搜索、筛选、行内编辑、批量选择和删除；字段顺序对齐高校信息维护清单模板。</p>
           </div>
           <strong>{filteredRecords.length} / {records.length} 条记录</strong>
         </div>
@@ -937,16 +977,6 @@ export function AdminDataEntry() {
                 {province}
               </option>
             ))}
-          </select>
-          <select value={filters.city} disabled={!filters.province} onChange={(event) => updateFilter("city")(event.target.value)}>
-            <option value="">全部城市</option>
-            {Array.from(new Set(records.filter((record) => !filters.province || record.province === filters.province).map((record) => record.city)))
-              .sort((a, b) => a.localeCompare(b, "zh-CN"))
-              .map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
           </select>
           <select value={filters.product} onChange={(event) => updateFilter("product")(event.target.value)}>
             <option value="">全部产品</option>
@@ -996,34 +1026,38 @@ export function AdminDataEntry() {
                     }}
                   />
                 </th>
-                <th className="col-province">省份</th>
-                <th className="col-city">城市</th>
                 <th className="col-school-id">学校ID</th>
+                <th className="col-province">省份</th>
                 <th className="col-university">高校名称</th>
+                <th className="col-status">覆盖状态</th>
+                <th>客户现状</th>
+                <th>采购时间</th>
+                <th>产品标签</th>
                 <th className="col-total">省份高校总数</th>
                 <th className="col-total">城市高校总数</th>
-                <th>产品标签</th>
-                <th>采购标签</th>
-                <th className="col-status">覆盖状态</th>
-                <th>设备明细</th>
-                <th>业务痛点</th>
-                <th>交付内容</th>
+                <th>资源类型</th>
+                <th>资源规模</th>
+                <th>资源单位</th>
+                <th>业务场景</th>
+                <th>核心价值点</th>
+                <th>设备型号</th>
+                <th>中标链接</th>
+                <th>备注</th>
                 <th className="col-action">操作</th>
               </tr>
             </thead>
             <tbody>
               {records.length === 0 ? (
                 <tr className="empty-row">
-                  <td colSpan={14}>暂无交付记录，可通过上方录入控制台新增或下载模板后批量导入 CSV。</td>
+                  <td colSpan={19}>暂无高校信息记录，可通过上方录入控制台新增或下载模板后批量导入 XLSX。</td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr className="empty-row">
-                  <td colSpan={14}>没有匹配当前筛选条件的交付记录。</td>
+                  <td colSpan={19}>没有匹配当前筛选条件的高校信息记录。</td>
                 </tr>
               ) : (
                 filteredRecords.map((record) => {
                   const editingForm = editingForms[record.id];
-                  const editingCities = editingCityOptions[record.id] ?? [];
                   return (
                     <tr className={editingForm ? "is-editing-row" : undefined} key={record.id}>
                       <td>
@@ -1038,10 +1072,17 @@ export function AdminDataEntry() {
                       {editingForm ? (
                         <>
                           <td>
+                            <input
+                              value={editingForm.schoolId}
+                              disabled={!adminUnlocked}
+                              onChange={(event) => updateEditingField(record.id, "schoolId", event.target.value)}
+                            />
+                          </td>
+                          <td>
                             <select
                               value={editingForm.province}
                               disabled={!adminUnlocked}
-                              onChange={(event) => void updateEditingProvince(record.id, event.target.value)}
+                              onChange={(event) => updateEditingField(record.id, "province", event.target.value)}
                             >
                               <option value="">选择省份</option>
                               {provinceOptions.map((province) => (
@@ -1052,31 +1093,45 @@ export function AdminDataEntry() {
                             </select>
                           </td>
                           <td>
+                            <input
+                              value={editingForm.university}
+                              disabled={!adminUnlocked}
+                              onChange={(event) => updateEditingField(record.id, "university", event.target.value)}
+                            />
+                          </td>
+                          <td>
                             <select
-                              value={editingForm.city}
-                              disabled={!adminUnlocked || !editingForm.province}
-                              onChange={(event) => updateEditingField(record.id, "city", event.target.value)}
+                              value={editingForm.coverageStatus}
+                              disabled={!adminUnlocked}
+                              onChange={(event) => updateEditingField(record.id, "coverageStatus", event.target.value)}
                             >
-                              <option value="">{editingForm.province ? "选择城市" : "先选省份"}</option>
-                              {editingCities.map((city) => (
-                                <option key={city} value={city}>
-                                  {city}
+                              <option value="">未填写</option>
+                              {COVERAGE_STATUS_OPTIONS.map((status) => (
+                                <option key={status} value={status}>
+                                  {status}
                                 </option>
                               ))}
                             </select>
                           </td>
                           <td>
                             <input
-                              value={editingForm.schoolId}
+                              value={editingForm.customerStatus}
                               disabled={!adminUnlocked}
-                              onChange={(event) => updateEditingField(record.id, "schoolId", event.target.value)}
+                              onChange={(event) => updateEditingField(record.id, "customerStatus", event.target.value)}
                             />
                           </td>
                           <td>
                             <input
-                              value={editingForm.university}
+                              value={editingForm.purchaseYear}
                               disabled={!adminUnlocked}
-                              onChange={(event) => updateEditingField(record.id, "university", event.target.value)}
+                              onChange={(event) => updateEditingField(record.id, "purchaseYear", event.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              value={editingForm.purchaseTags}
+                              disabled={!adminUnlocked}
+                              onChange={(event) => updateEditingField(record.id, "purchaseTags", event.target.value)}
                             />
                           </td>
                           <td>
@@ -1099,70 +1154,83 @@ export function AdminDataEntry() {
                           </td>
                           <td>
                             <input
-                              value={editingForm.productTags}
+                              value={editingForm.resourceType}
                               disabled={!adminUnlocked}
-                              onChange={(event) => updateEditingField(record.id, "productTags", event.target.value)}
+                              onChange={(event) => updateEditingField(record.id, "resourceType", event.target.value)}
                             />
                           </td>
                           <td>
                             <input
-                              value={editingForm.purchaseTags}
+                              value={editingForm.resourceAmount}
                               disabled={!adminUnlocked}
-                              onChange={(event) => updateEditingField(record.id, "purchaseTags", event.target.value)}
-                            />
-                          </td>
-                          <td>
-                            <select
-                              value={editingForm.coverageStatus}
-                              disabled={!adminUnlocked}
-                              onChange={(event) => updateEditingField(record.id, "coverageStatus", event.target.value)}
-                            >
-                              <option value="">未填写</option>
-                              {COVERAGE_STATUS_OPTIONS.map((status) => (
-                                <option key={status} value={status}>
-                                  {status}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td>
-                            <input
-                              value={editingForm.equipmentDetails}
-                              disabled={!adminUnlocked}
-                              onChange={(event) => updateEditingField(record.id, "equipmentDetails", event.target.value)}
+                              inputMode="numeric"
+                              onChange={(event) => updateEditingField(record.id, "resourceAmount", event.target.value)}
                             />
                           </td>
                           <td>
                             <input
-                              value={editingForm.painPoints}
+                              value={editingForm.resourceUnit}
                               disabled={!adminUnlocked}
-                              onChange={(event) => updateEditingField(record.id, "painPoints", event.target.value)}
+                              onChange={(event) => updateEditingField(record.id, "resourceUnit", event.target.value)}
                             />
                           </td>
                           <td>
                             <input
-                              value={editingForm.deliveryContent}
+                              value={editingForm.businessScenario}
                               disabled={!adminUnlocked}
-                              onChange={(event) => updateEditingField(record.id, "deliveryContent", event.target.value)}
+                              onChange={(event) => updateEditingField(record.id, "businessScenario", event.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              value={editingForm.coreValue}
+                              disabled={!adminUnlocked}
+                              onChange={(event) => updateEditingField(record.id, "coreValue", event.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              value={editingForm.deviceModel}
+                              disabled={!adminUnlocked}
+                              onChange={(event) => updateEditingField(record.id, "deviceModel", event.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              value={editingForm.bidLink}
+                              disabled={!adminUnlocked}
+                              onChange={(event) => updateEditingField(record.id, "bidLink", event.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              value={editingForm.notes}
+                              disabled={!adminUnlocked}
+                              onChange={(event) => updateEditingField(record.id, "notes", event.target.value)}
                             />
                           </td>
                         </>
                       ) : (
                         <>
-                          <td>{record.province}</td>
-                          <td>{record.city}</td>
                           <td>{record.schoolId || "-"}</td>
+                          <td>{record.province}</td>
                           <td>
                             <strong>{record.university}</strong>
                           </td>
+                          <td>{record.coverageStatus || "-"}</td>
+                          <td>{record.customerStatus || "-"}</td>
+                          <td>{record.purchaseYear || "-"}</td>
+                          <td>{joinList(record.purchaseTags)}</td>
                           <td>{record.provinceUniversityTotal ?? "-"}</td>
                           <td>{record.cityUniversityTotal ?? "-"}</td>
-                          <td>{joinList(record.productTags)}</td>
-                          <td>{joinList(record.purchaseTags)}</td>
-                          <td>{record.coverageStatus || "-"}</td>
-                          <td>{joinList(record.equipmentDetails)}</td>
-                          <td>{joinList(record.painPoints)}</td>
-                          <td>{record.deliveryContent || "-"}</td>
+                          <td>{record.resourceType || joinList(record.productTags)}</td>
+                          <td>{record.resourceAmount ?? "-"}</td>
+                          <td>{record.resourceUnit || "-"}</td>
+                          <td>{record.businessScenario || "-"}</td>
+                          <td>{record.coreValue || "-"}</td>
+                          <td>{record.deviceModel || joinList(record.equipmentDetails)}</td>
+                          <td>{record.bidLink || "-"}</td>
+                          <td>{record.notes || "-"}</td>
                         </>
                       )}
                       <td>

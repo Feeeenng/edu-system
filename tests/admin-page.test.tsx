@@ -10,10 +10,17 @@ const createdRecord: DeliveryRecord = {
   university: "测试录入大学",
   provinceUniversityTotal: 160,
   cityUniversityTotal: 18,
+  coverageStatus: "已部署",
+  customerStatus: "信息中心华为超融合+少部份VMware",
+  purchaseYear: "2025年",
   purchaseTags: ["信创"],
-  productTags: ["SDDC", "EDS"],
-  equipmentDetails: ["超融合节点x3", "EDS存储节点x2"],
-  painPoints: ["VMware替换压力大", "科研数据增长快"],
+  productTags: ["SDDC"],
+  resourceType: "SDDC",
+  resourceAmount: 4,
+  resourceUnit: "C",
+  businessScenario: "会议中心系统",
+  coreValue: "VMware替换压力大",
+  deviceModel: "纯软件交付",
   updatedAt: "2026-06-08T00:00:00.000Z",
 };
 
@@ -22,7 +29,7 @@ describe("AdminPage", () => {
     vi.restoreAllMocks();
   });
 
-  it("提供高校交付数据录入表单并能新增记录到列表", async () => {
+  it("提供高校信息维护表单并能新增记录到列表", async () => {
     let records: DeliveryRecord[] = [];
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
@@ -50,32 +57,34 @@ describe("AdminPage", () => {
 
     render(<AdminPage />);
 
-    expect(screen.getByRole("heading", { name: "高校交付数据录入" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "导出CSV" })).toBeInTheDocument();
-    expect(screen.getByLabelText("CSV导入")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "高校信息维护" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "导出XLSX" })).toBeInTheDocument();
+    expect(screen.getByLabelText("XLSX导入")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "新增记录" })).toBeEnabled());
 
-    const composePanel = screen.getByLabelText("新增高校交付记录");
+    const composePanel = screen.getByLabelText("新增高校信息记录");
     const selects = composePanel.querySelectorAll("select");
     const inputs = composePanel.querySelectorAll("input");
 
+    fireEvent.change(inputs[0], { target: { value: "1" } });
     fireEvent.change(selects[0], { target: { value: "广东省" } });
-    await waitFor(() => expect(selects[1]).toBeEnabled());
-    fireEvent.change(selects[1], { target: { value: "深圳市" } });
-    fireEvent.change(inputs[0], { target: { value: "测试录入大学" } });
-    fireEvent.change(inputs[1], { target: { value: "160" } });
-    fireEvent.change(inputs[2], { target: { value: "18" } });
-    fireEvent.change(inputs[3], { target: { value: "SDDC;EDS" } });
+    fireEvent.change(inputs[1], { target: { value: "测试录入大学" } });
+    fireEvent.change(selects[1], { target: { value: "已部署" } });
+    fireEvent.change(inputs[2], { target: { value: "信息中心华为超融合" } });
+    fireEvent.change(inputs[3], { target: { value: "2025年" } });
     fireEvent.change(inputs[4], { target: { value: "信创" } });
-    fireEvent.change(inputs[5], { target: { value: "超融合节点x3;EDS存储节点x2" } });
-    fireEvent.change(inputs[6], { target: { value: "VMware替换压力大;科研数据增长快" } });
+    fireEvent.change(inputs[7], { target: { value: "SDDC" } });
+    fireEvent.change(inputs[8], { target: { value: "4" } });
+    fireEvent.change(inputs[9], { target: { value: "C" } });
+    fireEvent.change(inputs[10], { target: { value: "会议中心系统" } });
+    fireEvent.change(inputs[11], { target: { value: "VMware替换压力大" } });
+    fireEvent.change(inputs[12], { target: { value: "纯软件交付" } });
     fireEvent.click(screen.getByRole("button", { name: "新增记录" }));
 
     const table = screen.getByRole("table");
     await waitFor(() => expect(table).toHaveTextContent("测试录入大学"));
-    expect(table).toHaveTextContent("160");
-    expect(table).toHaveTextContent("18");
-    expect(table).toHaveTextContent("超融合节点x3 / EDS存储节点x2");
-    expect(table).toHaveTextContent("VMware替换压力大 / 科研数据增长快");
+    expect(table).toHaveTextContent("SDDC");
+    expect(table).toHaveTextContent("会议中心系统");
+    expect(table).toHaveTextContent("VMware替换压力大");
   });
 });

@@ -1,17 +1,17 @@
 import { requireAdminRequest } from "@/lib/api/admin-auth";
-import { exportDeliveriesToCsv } from "@/lib/csv/export";
 import { readServerRecords } from "@/lib/data/server-store";
+import { buildDeliveriesWorkbook } from "@/lib/excel/workbook";
 
 export async function GET(request: Request) {
   const unauthorized = requireAdminRequest(request);
   if (unauthorized) return unauthorized;
 
-  const csv = exportDeliveriesToCsv(await readServerRecords());
-  return new Response(csv, {
+  const workbook = buildDeliveriesWorkbook(await readServerRecords());
+  return new Response(workbook, {
     headers: {
       "Cache-Control": "no-store",
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": "attachment; filename=deliveries.csv",
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": "attachment; filename=deliveries.xlsx",
     },
   });
 }

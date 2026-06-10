@@ -13,6 +13,7 @@ export type DeliveryRecord = {
   projectStage?: "线索" | "测试" | "方案" | "交付" | "运维";
   deliveryDate?: string;
   owner?: string;
+  purchaseYear?: string;
   purchaseTags: string[];
   productTags: string[];
   provinceUniversityTotal?: number;
@@ -20,6 +21,10 @@ export type DeliveryRecord = {
   resourceType?: string;
   resourceAmount?: number;
   resourceUnit?: string;
+  businessScenario?: string;
+  coreValue?: string;
+  deviceModel?: string;
+  bidLink?: string;
   deliveryContent?: string;
   equipmentDetails?: string[];
   painPoints?: string[];

@@ -107,7 +107,7 @@ describe("data validation", () => {
     });
     expect(validateDeliveryPayload({ ...basePayload, coverageStatus: "错误状态" })).toEqual({
       ok: false,
-      error: "覆盖状态必须是以下值之一：已覆盖、跟进中、未覆盖、暂停",
+      error: "覆盖状态必须是以下值之一：已覆盖、跟进中、未覆盖、暂停、已部署、已下单、新增商机、已下单+新增商机",
     });
     expect(validateDeliveryPayload({ ...basePayload, projectStage: "错误阶段" })).toEqual({
       ok: false,
