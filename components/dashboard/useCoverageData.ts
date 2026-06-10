@@ -69,11 +69,8 @@ export function useCoverageData(options: UseCoverageDataOptions = {}) {
     [keyword, selectedProductTags, selectedPurchaseTags],
   );
 
-  const denominatorRecords = useMemo(
-    () => filterDeliveries(records, { keyword }),
-    [keyword, records],
-  );
-  const filteredRecords = useMemo(
+  const denominatorRecords = records;
+  const coverageRecords = useMemo(
     () =>
       denominatorRecords.map((record) =>
         matchesSelectedCoverage(record, selectedProductTags, selectedPurchaseTags)
@@ -82,12 +79,17 @@ export function useCoverageData(options: UseCoverageDataOptions = {}) {
       ),
     [denominatorRecords, selectedProductTags, selectedPurchaseTags],
   );
+  // 覆盖率统计不能被关键词搜索缩小分母；搜索只用于右侧高校明细列表。
+  const filteredRecords = useMemo(
+    () => filterDeliveries(records, filters),
+    [filters, records],
+  );
   const productOptions = useMemo(() => getProductOptions(records), [records]);
   const purchaseOptions = useMemo(() => getPurchaseOptions(records), [records]);
-  const summary = useMemo(() => buildCoverageSummary(filteredRecords, denominatorRecords), [denominatorRecords, filteredRecords]);
+  const summary = useMemo(() => buildCoverageSummary(coverageRecords, denominatorRecords), [coverageRecords, denominatorRecords]);
   const provinceMetrics = useMemo(
-    () => groupByProvince(filteredRecords, denominatorRecords),
-    [denominatorRecords, filteredRecords],
+    () => groupByProvince(coverageRecords, denominatorRecords),
+    [coverageRecords, denominatorRecords],
   );
 
   return {
