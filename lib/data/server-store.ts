@@ -4,6 +4,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { dedupeDeliveries } from "@/lib/data/dedupe";
 import { createDeliveryRecord } from "@/lib/data/normalize";
+import { readSqliteRecords, writeSqliteRecords } from "@/lib/data/sqlite-store";
 import { readSupabaseRecords, writeSupabaseRecords } from "@/lib/data/supabase-store";
 import { validateDeliveryRecordShape } from "@/lib/data/validation";
 import type { DeliveryPayload, DeliveryRecord } from "@/lib/types";
@@ -20,6 +21,7 @@ type StoreSnapshot = {
 type ServerRecordsMutator = (records: DeliveryRecord[]) => DeliveryRecord[] | Promise<DeliveryRecord[]>;
 
 let localMutationQueue: Promise<unknown> = Promise.resolve();
+let sqliteMutationQueue: Promise<unknown> = Promise.resolve();
 let supabaseMutationQueue: Promise<unknown> = Promise.resolve();
 
 function hasSupabaseConfig() {
@@ -30,12 +32,16 @@ function shouldUseSupabaseStore() {
   return process.env.DATA_STORE === "supabase" || hasSupabaseConfig();
 }
 
+function shouldUseSqliteStore() {
+  return process.env.DATA_STORE === "sqlite";
+}
+
 function shouldUseBlobStore() {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN && process.env.VERCEL);
 }
 
 function assertVercelStoreConfigured() {
-  if (process.env.VERCEL && !shouldUseSupabaseStore() && !shouldUseBlobStore()) {
+  if (process.env.VERCEL && !shouldUseSupabaseStore() && !shouldUseSqliteStore() && !shouldUseBlobStore()) {
     throw new Error("Vercel 数据源未配置：请设置 NEXT_PUBLIC_SUPABASE_URL 和 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
   }
 }
@@ -68,6 +74,7 @@ function parseRecordArray(raw: string, source: string): DeliveryRecord[] {
 
 function assertWritableStoreConfigured() {
   if (shouldUseSupabaseStore()) return;
+  if (shouldUseSqliteStore()) return;
   assertVercelStoreConfigured();
 }
 
@@ -178,6 +185,21 @@ async function mutateLocalRecords(mutator: ServerRecordsMutator) {
   });
 }
 
+function enqueueSqliteMutation<T>(operation: () => Promise<T>) {
+  const next = sqliteMutationQueue.then(operation, operation);
+  sqliteMutationQueue = next.catch(() => undefined);
+  return next;
+}
+
+async function mutateSqliteRecords(mutator: ServerRecordsMutator) {
+  return enqueueSqliteMutation(async () => {
+    const records = await readSqliteRecords();
+    const nextRecords = await mutator(records);
+    await writeSqliteRecords(nextRecords);
+    return nextRecords;
+  });
+}
+
 function enqueueSupabaseMutation<T>(operation: () => Promise<T>) {
   const next = supabaseMutationQueue.then(operation, operation);
   supabaseMutationQueue = next.catch(() => undefined);
@@ -194,6 +216,7 @@ async function mutateSupabaseRecords(mutator: ServerRecordsMutator) {
 
 export async function readServerRecords(): Promise<DeliveryRecord[]> {
   if (shouldUseSupabaseStore()) return readSupabaseRecords();
+  if (shouldUseSqliteStore()) return readSqliteRecords();
   if (shouldUseBlobStore()) return readBlobRecords();
   assertVercelStoreConfigured();
   return readLocalDeliveryRecords();
@@ -205,6 +228,7 @@ export async function writeServerRecords(records: DeliveryRecord[]) {
 
 export async function mutateServerRecords(mutator: ServerRecordsMutator) {
   if (shouldUseSupabaseStore()) return mutateSupabaseRecords(mutator);
+  if (shouldUseSqliteStore()) return mutateSqliteRecords(mutator);
   return shouldUseBlobStore() ? mutateBlobRecords(mutator) : mutateLocalRecords(mutator);
 }
 

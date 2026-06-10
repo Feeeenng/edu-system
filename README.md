@@ -8,7 +8,7 @@
 - 地图交互：保留全国省份覆盖视图，点击省份后查看该省覆盖、高校分母和高校案例，不再展示市级下钻。
 - 案例详情：高校卡片聚合展示产品标签、设备清单和业务痛点。
 - 管理页 `/admin`：按 `data/高校信息维护清单-模板.xlsx` 表头新增和编辑高校信息记录，支持搜索过滤、批量删除、XLSX 导入、XLSX 导出和 XLSX 模板下载。
-- 服务端闭环：管理页新增、编辑、导入、删除会通过 `/api/deliveries` 写入 Supabase，首页读取同一份服务端数据。
+- 服务端闭环：管理页新增、编辑、导入、删除会通过 `/api/deliveries` 写入服务端数据源，首页读取同一份服务端数据。
 - 动效：GSAP 页面入场和卡片动效、ECharts 地图过渡、地图扫描线与覆盖点脉冲效果。
 
 ## 技术栈
@@ -18,6 +18,7 @@
 - ECharts + `china-map-echarts`：中国省份覆盖热力展示。
 - GSAP：大屏入场和列表切换动画。
 - XLSX：Excel 模板解析、导入和导出；PapaParse 保留用于历史 CSV 兼容。
+- SQLite：本地部署和 Docker 默认数据源，数据库文件可通过目录挂载持久化。
 - Vitest + Playwright：单元测试和端到端测试。
 
 ## 常用命令
@@ -42,6 +43,54 @@ bun run e2e
 本地直接打开 HTML 时，请打开 `out/index.html` 或 `out/admin/index.html`，并保留整个 `out/` 目录结构；页面资源会从同级或上级的 `_next/` 目录按相对路径加载。由于当前不再使用浏览器本地存储，静态 HTML 无法完成数据录入、导入和删除，真实数据维护请使用 `bun dev` 或 Vercel 部署地址。
 
 ## 数据模式
+
+### Docker 本地部署（默认 SQLite）
+
+Docker 镜像默认使用 SQLite，不需要额外配置数据库路径；容器内固定写入 `/app/data/deliveries.sqlite`。服务默认监听 `3000` 端口，对外暴露 `http://localhost:3000`。
+
+```bash
+docker compose up -d --build
+```
+
+默认 compose 配置会把宿主机 `./data` 挂载到容器 `/app/data`，所以 SQLite 文件会保存在：
+
+```text
+data/deliveries.sqlite
+```
+
+如果不使用 compose，也可以直接构建和运行镜像：
+
+```bash
+docker build -t edu-system:local .
+docker run -d \
+  --name edu-system \
+  -p 3000:3000 \
+  -e ADMIN_API_TOKEN=你的管理密码 \
+  -v "$PWD/data:/app/data" \
+  edu-system:local
+```
+
+Docker 镜像内置：
+
+```bash
+DATA_STORE=sqlite
+SQLITE_DB_PATH=/app/data/deliveries.sqlite
+PORT=3000
+```
+
+因此本地 Docker 部署只需要关注管理密码和数据目录挂载。`docker-compose.yml` 为方便首次启动提供了默认 `ADMIN_API_TOKEN=admin123`，正式使用时建议在 shell 或 `.env` 中覆盖。
+
+### SQLite 本地服务模式
+
+不使用 Docker 时，也可以在本机 Next 服务里启用 SQLite：
+
+```bash
+DATA_STORE=sqlite
+ADMIN_API_TOKEN=你的管理密码
+bun dev
+```
+
+本机不配置 `SQLITE_DB_PATH` 时，默认使用 `data/deliveries.sqlite`。如果需要自定义路径，可以设置 `SQLITE_DB_PATH`，但 Docker 部署不需要配置它。
 
 ### Supabase 服务端模式
 

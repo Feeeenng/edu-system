@@ -1,0 +1,14 @@
+.git
+.next
+.vercel
+.env*
+!.env.example
+node_modules
+out
+dist
+data
+test-results
+playwright-report
+tsconfig.tsbuildinfo
+Dockerfile
+docker-compose.yml

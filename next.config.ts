@@ -12,6 +12,7 @@ export function createNextConfig({ staticExport }: CreateNextConfigOptions): Nex
     images: { unoptimized: staticExport },
     devIndicators: false,
     allowedDevOrigins: ["127.0.0.1"],
+    serverExternalPackages: ["sql.js"],
   };
 }
 

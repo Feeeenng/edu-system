@@ -1,0 +1,16 @@
+services:
+  edu-system:
+    build:
+      context: .
+    image: edu-system:local
+    container_name: edu-system
+    environment:
+      DATA_STORE: sqlite
+      SQLITE_DB_PATH: /app/data/deliveries.sqlite
+      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-admin123}
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
