@@ -379,7 +379,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
           })}
         </div>
         <div className="tag-filter-group">
-          <span>采购</span>
+          <span>产品标签</span>
           {orderedPurchases.map((tag) => {
             const active = selectedPurchaseTags.includes(tag);
             return (
