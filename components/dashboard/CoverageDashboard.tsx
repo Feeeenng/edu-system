@@ -160,9 +160,11 @@ function groupUniversityCardsByProvince(cards: UniversityDetail[]): ProvinceCase
 
 function getCoverageTone(metric: RegionMetric) {
   const rate = metric.coverageRate ?? 0;
-  if (rate >= 0.2) return "is-hot";
-  if (rate >= 0.1) return "is-warm";
-  if (rate > 0) return "is-cool";
+  if (rate >= 0.5) return "is-strong";
+  if (rate >= 0.35) return "is-good";
+  if (rate >= 0.2) return "is-warm";
+  if (rate >= 0.1) return "is-watch";
+  if (rate > 0) return "is-risk";
   return "is-zero";
 }
 

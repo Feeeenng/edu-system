@@ -413,6 +413,109 @@
   display: block;
 }
 
+.south-china-sea-inset {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 5;
+  width: 122px;
+  height: 150px;
+  border: 1px solid rgba(37, 99, 235, 0.34);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(239, 246, 255, 0.92), rgba(255, 255, 255, 0.82)),
+    repeating-linear-gradient(90deg, transparent 0 22px, rgba(37, 99, 235, 0.08) 22px 23px),
+    repeating-linear-gradient(180deg, transparent 0 22px, rgba(37, 99, 235, 0.08) 22px 23px);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.1);
+  pointer-events: none;
+}
+
+.south-china-sea-inset span {
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  color: var(--dash-blue-950);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.south-china-sea-inset .island,
+.south-china-sea-inset .sea-dash {
+  position: absolute;
+  display: block;
+  border-radius: 999px;
+  background: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
+}
+
+.south-china-sea-inset .island {
+  width: 5px;
+  height: 5px;
+}
+
+.south-china-sea-inset .island-one {
+  left: 38px;
+  top: 24px;
+}
+
+.south-china-sea-inset .island-two {
+  left: 74px;
+  top: 35px;
+}
+
+.south-china-sea-inset .island-three {
+  left: 58px;
+  top: 66px;
+}
+
+.south-china-sea-inset .island-four {
+  left: 88px;
+  top: 82px;
+}
+
+.south-china-sea-inset .island-five {
+  left: 44px;
+  top: 106px;
+}
+
+.south-china-sea-inset .island-six {
+  left: 78px;
+  top: 118px;
+}
+
+.south-china-sea-inset .sea-dash {
+  width: 2px;
+  height: 14px;
+  background: transparent;
+  border-radius: 0;
+  border-left: 2px dashed rgba(37, 99, 235, 0.8);
+  box-shadow: none;
+}
+
+.south-china-sea-inset .dash-one {
+  left: 23px;
+  top: 43px;
+  transform: rotate(-12deg);
+}
+
+.south-china-sea-inset .dash-two {
+  right: 24px;
+  top: 57px;
+  transform: rotate(18deg);
+}
+
+.south-china-sea-inset .dash-three {
+  left: 31px;
+  top: 82px;
+  transform: rotate(10deg);
+}
+
+.south-china-sea-inset .dash-four {
+  right: 36px;
+  top: 103px;
+  transform: rotate(-18deg);
+}
+
 .map-scanline {
   position: absolute;
   left: 8%;
@@ -429,7 +532,7 @@
 .province-lens {
   position: absolute;
   right: 16px;
-  bottom: 16px;
+  top: 16px;
   z-index: 7;
   width: min(230px, calc(100% - 32px));
   padding: 12px 13px;
@@ -707,20 +810,28 @@
   font-size: 14px;
 }
 
-.rank-table strong.is-hot {
-  color: var(--dash-red);
+.rank-table strong.is-strong {
+  color: #15803d;
+}
+
+.rank-table strong.is-good {
+  color: #16a34a;
 }
 
 .rank-table strong.is-warm {
   color: var(--dash-orange);
 }
 
-.rank-table strong.is-cool {
-  color: var(--dash-green);
+.rank-table strong.is-watch {
+  color: #ca8a04;
+}
+
+.rank-table strong.is-risk {
+  color: var(--dash-red);
 }
 
 .rank-table strong.is-zero {
-  color: #059669;
+  color: #94a3b8;
 }
 
 .case-panel {
@@ -1024,6 +1135,17 @@
   .echarts-map-shell,
   .echarts-map-canvas {
     min-height: 520px;
+  }
+
+  .south-china-sea-inset {
+    right: 12px;
+    bottom: 12px;
+    width: 96px;
+    height: 118px;
+  }
+
+  .south-china-sea-inset span {
+    font-size: 10px;
   }
 }
 

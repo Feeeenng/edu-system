@@ -72,10 +72,12 @@ function buildVisualMapPieces(useCoverageRate: boolean): PiecewiseVisualMapCompo
   // 低数据量筛选时使用分段色阶，避免连续浅色渐变让少量覆盖区域不可见。
   if (useCoverageRate) {
     return [
-      { gte: 20, label: ">= 20%", color: "#ef4444" },
-      { gte: 10, lt: 20, label: "10% - 20%", color: "#fb923c" },
-      { gte: 5, lt: 10, label: "5% - 10%", color: "#fde047" },
-      { gt: 0, lt: 5, label: "0% - 5%", color: "#bef264" },
+      { gte: 50, label: ">= 50%", color: "#16a34a" },
+      { gte: 35, lt: 50, label: "35% - 50%", color: "#86efac" },
+      { gte: 20, lt: 35, label: "20% - 35%", color: "#fb923c" },
+      { gte: 10, lt: 20, label: "10% - 20%", color: "#facc15" },
+      { gte: 5, lt: 10, label: "5% - 10%", color: "#fde68a" },
+      { gt: 0, lt: 5, label: "0% - 5%", color: "#ef4444" },
       { value: 0, label: "0% / 未覆盖", color: "#d1d5db" },
     ];
   }
@@ -315,6 +317,19 @@ export function ChinaCoverageMap({
     <div className="echarts-map-shell" role="img" aria-label="ECharts 中国高校覆盖地图">
       <span className="map-scanline" aria-hidden="true" />
       <div className="echarts-map-canvas" ref={containerRef} aria-hidden="true" />
+      <div className="south-china-sea-inset" aria-hidden="true">
+        <span>南海诸岛</span>
+        <i className="island island-one" />
+        <i className="island island-two" />
+        <i className="island island-three" />
+        <i className="island island-four" />
+        <i className="island island-five" />
+        <i className="island island-six" />
+        <i className="sea-dash dash-one" />
+        <i className="sea-dash dash-two" />
+        <i className="sea-dash dash-three" />
+        <i className="sea-dash dash-four" />
+      </div>
     </div>
   );
 }
