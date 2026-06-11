@@ -2,7 +2,7 @@ services:
   edu-system:
     build:
       context: .
-    image: edu-system:local
+    image: feeeng/edu-system
     container_name: edu-system
     environment:
       DATA_STORE: sqlite

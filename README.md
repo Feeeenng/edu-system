@@ -61,13 +61,13 @@ data/deliveries.sqlite
 如果不使用 compose，也可以直接构建和运行镜像：
 
 ```bash
-docker build -t edu-system:local .
+docker build -t feeeng/edu-system .
 docker run -d \
   --name edu-system \
   -p 3000:3000 \
   -e ADMIN_API_TOKEN=你的管理密码 \
   -v "$PWD/data:/app/data" \
-  edu-system:local
+  feeeng/edu-system
 ```
 
 Docker 镜像内置：
