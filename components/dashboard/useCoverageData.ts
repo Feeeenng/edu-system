@@ -24,14 +24,6 @@ function getPurchaseOptions(records: DeliveryRecord[]) {
   );
 }
 
-function hasEveryTag(selected: string[], tags: string[]) {
-  return selected.length === 0 || selected.every((tag) => tags.includes(tag));
-}
-
-function matchesSelectedCoverage(record: DeliveryRecord, productTags: string[], purchaseTags: string[]) {
-  return hasEveryTag(productTags, record.productTags) && hasEveryTag(purchaseTags, record.purchaseTags);
-}
-
 export function useCoverageData(options: UseCoverageDataOptions = {}) {
   const initialRecords = options.initialRecords ?? EMPTY_RECORDS;
   const [records, setRecords] = useState<DeliveryRecord[]>(initialRecords);
@@ -70,19 +62,20 @@ export function useCoverageData(options: UseCoverageDataOptions = {}) {
   );
 
   const denominatorRecords = records;
-  const coverageRecords = useMemo(
-    () =>
-      denominatorRecords.map((record) =>
-        matchesSelectedCoverage(record, selectedProductTags, selectedPurchaseTags)
-          ? record
-          : { ...record, coverageStatus: undefined, productTags: [], purchaseTags: [] },
-      ),
-    [denominatorRecords, selectedProductTags, selectedPurchaseTags],
-  );
-  // 覆盖率统计不能被关键词搜索缩小分母；搜索只用于右侧高校明细列表。
   const filteredRecords = useMemo(
     () => filterDeliveries(records, filters),
     [filters, records],
+  );
+  const filteredRecordIds = useMemo(() => new Set(filteredRecords.map((record) => record.id)), [filteredRecords]);
+  // 覆盖率统计分母始终使用全量后端数据；分子按产品标签、关键词等筛选条件计算。
+  const coverageRecords = useMemo(
+    () =>
+      denominatorRecords.map((record) =>
+        filteredRecordIds.has(record.id)
+          ? record
+          : { ...record, coverageStatus: undefined, productTags: [], purchaseTags: [] },
+      ),
+    [denominatorRecords, filteredRecordIds],
   );
   const productOptions = useMemo(() => getProductOptions(records), [records]);
   const purchaseOptions = useMemo(() => getPurchaseOptions(records), [records]);

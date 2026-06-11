@@ -226,7 +226,8 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
   }, [purchaseOptions]);
 
   const metricMap = useMemo(() => getMetricMap(provinceMetrics), [provinceMetrics]);
-  const activeScopeLabel = selectedPurchaseTags[0] ?? selectedProductTags[0] ?? "交付部署";
+  const activeScopeLabel =
+    keyword.trim() ? `搜索：${keyword.trim()}` : selectedPurchaseTags[0] ?? selectedProductTags[0] ?? "交付部署";
   const viewRecords = useMemo(
     () =>
       selectedProvince ? filteredRecords.filter((record) => record.province === selectedProvince) : filteredRecords,
