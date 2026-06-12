@@ -69,7 +69,7 @@ bun run docker:push
 默认镜像名是 `feeeng/edu-system:latest`。也可以指定标签：
 
 ```bash
-node scripts/docker-build-push.mjs --tag v1.0.0 --push
+sh scripts/docker-build-push.sh --tag v1.0.0 --push
 ```
 
 不使用 compose 时，可以直接运行镜像：
