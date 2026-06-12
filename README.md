@@ -49,7 +49,8 @@ bun run e2e
 Docker 镜像默认使用 SQLite，不需要额外配置数据库路径；容器内固定写入 `/app/data/deliveries.sqlite`。服务默认监听 `3000` 端口，对外暴露 `http://localhost:3000`。
 
 ```bash
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
 默认 compose 配置会把宿主机 `./data` 挂载到容器 `/app/data`，所以 SQLite 文件会保存在：
@@ -58,16 +59,28 @@ docker compose up -d --build
 data/deliveries.sqlite
 ```
 
-如果不使用 compose，也可以直接构建和运行镜像：
+如果需要自己构建并上传镜像，先执行：
 
 ```bash
-docker build -t feeeng/edu-system .
+bun run docker:build
+bun run docker:push
+```
+
+默认镜像名是 `feeeng/edu-system:latest`。也可以指定标签：
+
+```bash
+node scripts/docker-build-push.mjs --tag v1.0.0 --push
+```
+
+不使用 compose 时，可以直接运行镜像：
+
+```bash
 docker run -d \
   --name edu-system \
   -p 3000:3000 \
   -e ADMIN_API_TOKEN=你的管理密码 \
   -v "$PWD/data:/app/data" \
-  feeeng/edu-system
+  feeeng/edu-system:latest
 ```
 
 Docker 镜像内置：
