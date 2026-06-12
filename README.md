@@ -72,6 +72,15 @@ bun run docker:push
 sh scripts/docker-build-push.sh --tag v1.0.0 --push
 ```
 
+GitHub Actions 会在推送 `v*` 标签时自动构建并推送 Docker 镜像，同时创建 GitHub Release。需要在仓库 Secrets 中配置：
+
+```text
+DOCKERHUB_USERNAME
+DOCKERHUB_TOKEN
+```
+
+也可以在 Actions 页面手动触发 `Docker Release` workflow，指定镜像标签和是否同步更新 `latest`。
+
 不使用 compose 时，可以直接运行镜像：
 
 ```bash
