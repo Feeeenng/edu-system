@@ -2,6 +2,7 @@ services:
   edu-system:
     image: feeeng/edu-system:latest
     container_name: edu-system
+    pull_policy: always
     environment:
       DATA_STORE: sqlite
       SQLITE_DB_PATH: /app/data/deliveries.sqlite

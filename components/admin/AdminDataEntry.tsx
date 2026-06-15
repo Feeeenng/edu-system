@@ -81,6 +81,11 @@ type AdminSessionPayload = {
   error?: string;
 };
 
+type ImportProgressState = {
+  percent: number;
+  label: string;
+};
+
 const EMPTY_ENTRY_FORM: EntryFormState = {
   schoolId: "",
   province: "",
@@ -351,8 +356,10 @@ export function AdminDataEntry() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authMessage, setAuthMessage] = useState("请输入管理密码，解锁录入、导入、导出和删除操作。");
   const [homeHref, setHomeHref] = useState("/");
+  const [importProgress, setImportProgress] = useState<ImportProgressState | null>(null);
   const providerRef = useRef<ReturnType<typeof createClientProvider> | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const importingRef = useRef(false);
   const provinceOptions = useMemo(getProvinceOptions, []);
   const productOptions = useMemo(
     () =>
@@ -658,25 +665,34 @@ export function AdminDataEntry() {
   };
 
   const importExcel = async (file: File) => {
+    if (importingRef.current) return;
     if (!requireAdminUnlocked()) return;
 
-    const result = await parseDeliveryExcel(file);
-    if (result.errors.length > 0) {
-      setMessage(result.errors.slice(0, 2).join("；"));
-      return;
-    }
-
-    const nextRecords = dedupeDeliveries(result.records.map(createDeliveryRecord));
-    if (nextRecords.length === 0) {
-      setMessage("Excel 中没有可导入的记录，已保留现有数据。");
-      return;
-    }
-
     try {
+      importingRef.current = true;
+      setImportProgress({ percent: 14, label: "正在读取 XLSX 文件" });
+      setMessage(`正在导入：${file.name}`);
+      const result = await parseDeliveryExcel(file);
+
+      setImportProgress({ percent: 42, label: "正在校验表格数据" });
+      if (result.errors.length > 0) {
+        setMessage(result.errors.slice(0, 2).join("；"));
+        return;
+      }
+
+      const nextRecords = dedupeDeliveries(result.records.map(createDeliveryRecord));
+      if (nextRecords.length === 0) {
+        setMessage("Excel 中没有可导入的记录，已保留现有数据。");
+        return;
+      }
+
+      setImportProgress({ percent: 68, label: "正在写入服务端数据" });
       const currentRecords = await getProvider().list();
       const currentKeys = new Set(currentRecords.map(getDeliveryBusinessKey));
       const addedCount = nextRecords.filter((record) => !currentKeys.has(getDeliveryBusinessKey(record))).length;
       const mergedRecords = await getProvider().replaceAll(dedupeDeliveries([...nextRecords, ...currentRecords]));
+
+      setImportProgress({ percent: 92, label: "正在刷新维护表" });
       setRecords(mergedRecords);
       setSelectedIds(new Set());
       const duplicateCount = result.records.length - addedCount;
@@ -687,6 +703,9 @@ export function AdminDataEntry() {
       );
     } catch (importError) {
       setMessage(importError instanceof Error ? importError.message : "Excel 导入失败");
+    } finally {
+      importingRef.current = false;
+      setImportProgress(null);
     }
   };
 
@@ -742,19 +761,19 @@ export function AdminDataEntry() {
             下载XLSX模板
           </button>
           <label
-            className={`file-action${adminUnlocked ? "" : " is-disabled"}`}
+            className={`file-action${adminUnlocked && !importProgress ? "" : " is-disabled"}`}
             onClick={(event) => {
-              if (adminUnlocked) return;
+              if (adminUnlocked && !importProgress) return;
               event.preventDefault();
-              requireAdminUnlocked();
+              if (!adminUnlocked) requireAdminUnlocked();
             }}
           >
             <FileUp size={16} aria-hidden="true" />
-            XLSX导入
+            {importProgress ? "导入中" : "XLSX导入"}
             <input
               ref={fileRef}
               type="file"
-              disabled={!adminUnlocked}
+              disabled={!adminUnlocked || Boolean(importProgress)}
               accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               aria-label="XLSX导入"
               onChange={(event) => {
@@ -770,6 +789,24 @@ export function AdminDataEntry() {
               }}
             />
           </label>
+          {importProgress ? (
+            <div
+              className="import-progress"
+              aria-label="XLSX导入进度"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={importProgress.percent}
+            >
+              <div className="import-progress-copy">
+                <span>{importProgress.label}</span>
+                <strong>{importProgress.percent}%</strong>
+              </div>
+              <div className="import-progress-track">
+                <span style={{ width: `${importProgress.percent}%` }} />
+              </div>
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={() => {

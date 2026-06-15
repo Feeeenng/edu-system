@@ -24,6 +24,27 @@ describe("data normalize", () => {
     expect(record.productTags).toEqual(["SDDC"]);
   });
 
+  it("crypto.randomUUID 不可用时仍能为导入记录补齐 id", () => {
+    try {
+      vi.stubGlobal("crypto", {
+        ...globalThis.crypto,
+        randomUUID: undefined,
+      });
+
+      const record = createDeliveryRecord({
+        province: "广东省",
+        city: "深圳市",
+        university: "深圳大学",
+        purchaseTags: [],
+        productTags: ["SDDC"],
+      });
+
+      expect(record.id).toMatch(/^delivery-/);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("规范化空标签和数字字段", () => {
     const payload = normalizeDeliveryPayload({
       province: " 广东省 ",

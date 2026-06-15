@@ -137,6 +137,71 @@
   opacity: 0;
 }
 
+.import-progress {
+  flex: 1 1 260px;
+  min-width: 260px;
+  max-width: 360px;
+  display: grid;
+  gap: 7px;
+  align-self: stretch;
+  justify-content: stretch;
+  padding: 7px 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 10px 28px rgba(30, 64, 175, 0.08);
+}
+
+.import-progress-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--admin-slate-500);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.import-progress-copy strong {
+  color: var(--admin-blue-800);
+  font-family: "Fira Code", "SFMono-Regular", Consolas, monospace;
+}
+
+.import-progress-track {
+  height: 7px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  overflow: hidden;
+}
+
+.import-progress-track span {
+  position: relative;
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--admin-blue-800), #0d9488, var(--admin-amber-500));
+  transition: width 240ms ease;
+}
+
+.import-progress-track span::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.62), transparent);
+  animation: import-progress-sheen 1.1s linear infinite;
+}
+
+@keyframes import-progress-sheen {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
+}
+
 .entry-overview {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -751,6 +816,8 @@
   .admin-shell *,
   .admin-shell *::before,
   .admin-shell *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
 }
@@ -804,8 +871,11 @@
 
   .admin-actions button,
   .admin-action-link,
-  .file-action {
+  .file-action,
+  .import-progress {
     flex: 1 1 150px;
+    max-width: none;
+    min-width: 0;
   }
 
   .admin-auth-form {

@@ -1,7 +1,16 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import AdminPage from "@/app/admin/page";
+import { parseDeliveryExcel } from "@/lib/excel/workbook";
 import type { DeliveryRecord } from "@/lib/types";
+
+vi.mock("@/lib/excel/workbook", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/excel/workbook")>();
+  return {
+    ...actual,
+    parseDeliveryExcel: vi.fn(actual.parseDeliveryExcel),
+  };
+});
 
 const createdRecord: DeliveryRecord = {
   id: "delivery-admin-test",
@@ -84,5 +93,52 @@ describe("AdminPage", () => {
     expect(table).toHaveTextContent("SDDC");
     expect(table).toHaveTextContent("会议中心系统");
     expect(table).toHaveTextContent("VMware替换压力大");
+  });
+
+  it("上传 XLSX 时显示导入进度条并暂时禁用重复上传", async () => {
+    let resolveParse: (() => void) | undefined;
+    vi.mocked(parseDeliveryExcel).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveParse = () => resolve({ records: [], errors: [] });
+        }),
+    );
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes("/api/admin/session")) {
+        return new Response(JSON.stringify({ configured: true, unlocked: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      if (!init?.method || init.method === "GET") {
+        return new Response(JSON.stringify({ records: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ records: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    render(<AdminPage />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "新增记录" })).toBeEnabled());
+
+    const input = screen.getByLabelText("XLSX导入");
+    const file = new File(["fake"], "高校信息维护清单.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    expect(await screen.findByRole("progressbar", { name: "XLSX导入进度" })).toBeInTheDocument();
+    expect(input).toBeDisabled();
+
+    resolveParse?.();
+    await waitFor(() => expect(screen.queryByRole("progressbar", { name: "XLSX导入进度" })).not.toBeInTheDocument());
   });
 });

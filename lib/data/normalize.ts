@@ -93,6 +93,19 @@ function cleanNumber(value: number | undefined) {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
+function createRecordIdSuffix() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const values = crypto.getRandomValues(new Uint32Array(4));
+    return Array.from(values, (value) => value.toString(16).padStart(8, "0")).join("-");
+  }
+
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export function normalizeDeliveryPayload(payload: DeliveryPayload): DeliveryPayload {
   return {
     ...payload,
@@ -129,7 +142,7 @@ export function createDeliveryRecord(payload: DeliveryPayload): DeliveryRecord {
   const normalized = normalizeDeliveryPayload(payload);
   return {
     ...normalized,
-    id: normalized.id ?? `delivery-${crypto.randomUUID()}`,
+    id: normalized.id ?? `delivery-${createRecordIdSuffix()}`,
     updatedAt: cleanOptionalText(normalized.updatedAt) ?? new Date().toISOString(),
   };
 }

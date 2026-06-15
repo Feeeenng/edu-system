@@ -1,5 +1,5 @@
 declare module "sql.js/dist/sql-asm.js" {
-  import initSqlJs = require("sql.js");
+  const initSqlJs: typeof import("sql.js");
 
   export default initSqlJs;
 }
