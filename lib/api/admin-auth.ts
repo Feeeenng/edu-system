@@ -10,8 +10,14 @@ function shouldFailClosed() {
   return Boolean(process.env.VERCEL || process.env.NODE_ENV === "production");
 }
 
-function shouldUseSecureCookie() {
-  return Boolean(process.env.VERCEL || process.env.NODE_ENV === "production");
+function getRequestProtocol(request: Request) {
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim().toLowerCase();
+  if (forwardedProto) return forwardedProto;
+  return new URL(request.url).protocol.replace(":", "");
+}
+
+function shouldUseSecureCookie(request: Request) {
+  return process.env.VERCEL ? true : getRequestProtocol(request) === "https";
 }
 
 function readBearerToken(request: Request) {
@@ -88,23 +94,23 @@ export function getAdminAuthStatus(request: Request) {
   };
 }
 
-export function setAdminSessionCookie(response: NextResponse, expectedToken: string) {
+export function setAdminSessionCookie(response: NextResponse, request: Request, expectedToken: string) {
   response.cookies.set(ADMIN_SESSION_COOKIE_NAME, createAdminSessionValue(expectedToken), {
     httpOnly: true,
     maxAge: ADMIN_SESSION_MAX_AGE_SECONDS,
     path: "/",
     sameSite: "lax",
-    secure: shouldUseSecureCookie(),
+    secure: shouldUseSecureCookie(request),
   });
 }
 
-export function clearAdminSessionCookie(response: NextResponse) {
+export function clearAdminSessionCookie(response: NextResponse, request: Request) {
   response.cookies.set(ADMIN_SESSION_COOKIE_NAME, "", {
     httpOnly: true,
     maxAge: 0,
     path: "/",
     sameSite: "lax",
-    secure: shouldUseSecureCookie(),
+    secure: shouldUseSecureCookie(request),
   });
 }
 

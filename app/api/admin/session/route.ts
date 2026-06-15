@@ -38,12 +38,12 @@ export async function POST(request: Request) {
   }
 
   const response = NextResponse.json({ configured: true, unlocked: true });
-  setAdminSessionCookie(response, expectedToken);
+  setAdminSessionCookie(response, request, expectedToken);
   return response;
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   const response = NextResponse.json({ unlocked: false });
-  clearAdminSessionCookie(response);
+  clearAdminSessionCookie(response, request);
   return response;
 }

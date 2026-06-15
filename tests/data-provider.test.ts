@@ -617,6 +617,93 @@ describe("delivery api route", () => {
       expect(store.readServerRecords).not.toHaveBeenCalled();
     });
   });
+
+  it("非 Vercel 的 HTTP production 登录会话 Cookie 不带 Secure", async () => {
+    const originalToken = process.env.ADMIN_API_TOKEN;
+    const originalNodeEnv = process.env.NODE_ENV;
+    const originalVercel = process.env.VERCEL;
+    process.env.ADMIN_API_TOKEN = "secret-token";
+    delete process.env.VERCEL;
+    vi.stubEnv("NODE_ENV", "production");
+
+    try {
+      vi.resetModules();
+      const route = await import("@/app/api/admin/session/route");
+      const response = await route.POST(
+        new Request("http://localhost:3000/api/admin/session", {
+          method: "POST",
+          body: JSON.stringify({ token: "secret-token" }),
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const setCookie = response.headers.get("set-cookie") ?? "";
+      expect(setCookie).toContain("edu-system.admin-session=");
+      expect(setCookie.toLowerCase()).not.toContain("secure");
+    } finally {
+      if (originalToken === undefined) {
+        delete process.env.ADMIN_API_TOKEN;
+      } else {
+        process.env.ADMIN_API_TOKEN = originalToken;
+      }
+      if (originalVercel === undefined) {
+        delete process.env.VERCEL;
+      } else {
+        process.env.VERCEL = originalVercel;
+      }
+      vi.unstubAllEnvs();
+      if (originalNodeEnv !== undefined) {
+        process.env.NODE_ENV = originalNodeEnv;
+      }
+      vi.resetModules();
+    }
+  });
+
+  it("HTTPS 代理后的 production 登录会话 Cookie 保持 Secure", async () => {
+    const originalToken = process.env.ADMIN_API_TOKEN;
+    const originalNodeEnv = process.env.NODE_ENV;
+    const originalVercel = process.env.VERCEL;
+    process.env.ADMIN_API_TOKEN = "secret-token";
+    delete process.env.VERCEL;
+    vi.stubEnv("NODE_ENV", "production");
+
+    try {
+      vi.resetModules();
+      const route = await import("@/app/api/admin/session/route");
+      const response = await route.POST(
+        new Request("http://localhost:3000/api/admin/session", {
+          method: "POST",
+          body: JSON.stringify({ token: "secret-token" }),
+          headers: {
+            "Content-Type": "application/json",
+            "x-forwarded-proto": "https",
+          },
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const setCookie = response.headers.get("set-cookie") ?? "";
+      expect(setCookie).toContain("edu-system.admin-session=");
+      expect(setCookie.toLowerCase()).toContain("secure");
+    } finally {
+      if (originalToken === undefined) {
+        delete process.env.ADMIN_API_TOKEN;
+      } else {
+        process.env.ADMIN_API_TOKEN = originalToken;
+      }
+      if (originalVercel === undefined) {
+        delete process.env.VERCEL;
+      } else {
+        process.env.VERCEL = originalVercel;
+      }
+      vi.unstubAllEnvs();
+      if (originalNodeEnv !== undefined) {
+        process.env.NODE_ENV = originalNodeEnv;
+      }
+      vi.resetModules();
+    }
+  });
 });
 
 describe("server store", () => {
