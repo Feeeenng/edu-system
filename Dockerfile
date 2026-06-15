@@ -25,4 +25,4 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=deps /app/node_modules ./node_modules
 EXPOSE 3000
-CMD ["bun", "run", "start"]
+CMD ["bun", "./node_modules/next/dist/bin/next", "start"]
