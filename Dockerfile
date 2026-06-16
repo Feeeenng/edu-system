@@ -1,16 +1,16 @@
-FROM oven/bun:1.3.11 AS deps
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/oven/bun:1.3.11 AS deps
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
-FROM oven/bun:1.3.11 AS builder
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/oven/bun:1.3.11 AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN bun run build
 
-FROM oven/bun:1.3.11 AS runner
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/oven/bun:1.3.11 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
