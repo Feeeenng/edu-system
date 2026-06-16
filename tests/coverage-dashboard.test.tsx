@@ -41,6 +41,13 @@ describe("CoverageDashboard", () => {
     expect(screen.queryByRole("button", { name: /广东省/ })).not.toBeInTheDocument();
   });
 
+  it("使用后台配置的首页标题", async () => {
+    render(<CoverageDashboard initialRecords={[]} initialSiteConfig={{ dashboardTitle: "高校覆盖作战地图" }} />);
+
+    expect(screen.getByRole("heading", { name: "高校覆盖作战地图" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "高校产品案例覆盖率热力图" })).not.toBeInTheDocument();
+  });
+
   it("首页不提供 CSV 导入且保留已有真实数据展示", async () => {
     render(<CoverageDashboard initialRecords={[createDeliveryRecord({ university: "已有真实大学" })]} />);
 

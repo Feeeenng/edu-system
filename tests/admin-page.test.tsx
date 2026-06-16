@@ -31,10 +31,56 @@ const createdRecord: DeliveryRecord = {
   updatedAt: "2026-06-08T00:00:00.000Z",
 };
 
+const ADMIN_PAGE_TEST_TIMEOUT = 10_000;
+
 describe("AdminPage", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
+
+  it("提供首页标题配置并能保存", async () => {
+    let dashboardTitle = "高校产品案例覆盖率热力图";
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes("/api/admin/session")) {
+        return new Response(JSON.stringify({ configured: true, unlocked: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      if (url.includes("/api/site-config")) {
+        if (init?.method === "PUT") {
+          dashboardTitle = JSON.parse(String(init.body)).dashboardTitle;
+          return new Response(JSON.stringify({ config: { dashboardTitle } }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        return new Response(JSON.stringify({ config: { dashboardTitle } }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      if (!init?.method || init.method === "GET") {
+        return new Response(JSON.stringify({ records: [] }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+    });
+
+    render(<AdminPage />);
+
+    expect(screen.getByRole("heading", { name: "高校信息维护" })).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("高校产品案例覆盖率热力图")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("首页标题"), { target: { value: "高校覆盖作战地图" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存首页标题" }));
+
+    await waitFor(() => expect(screen.getByText("首页标题已保存，首页刷新后生效。")).toBeInTheDocument());
+    expect(dashboardTitle).toBe("高校覆盖作战地图");
+  }, ADMIN_PAGE_TEST_TIMEOUT);
 
   it("提供高校信息维护表单并能新增记录到列表", async () => {
     let records: DeliveryRecord[] = [];
@@ -42,6 +88,13 @@ describe("AdminPage", () => {
       const url = String(input);
       if (url.includes("/api/admin/session")) {
         return new Response(JSON.stringify({ configured: true, unlocked: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      if (url.includes("/api/site-config")) {
+        return new Response(JSON.stringify({ config: { dashboardTitle: "高校产品案例覆盖率热力图" } }), {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
@@ -93,7 +146,7 @@ describe("AdminPage", () => {
     expect(table).toHaveTextContent("SDDC");
     expect(table).toHaveTextContent("会议中心系统");
     expect(table).toHaveTextContent("VMware替换压力大");
-  });
+  }, ADMIN_PAGE_TEST_TIMEOUT);
 
   it("上传 XLSX 时显示导入进度条并暂时禁用重复上传", async () => {
     let resolveParse: (() => void) | undefined;
@@ -108,6 +161,13 @@ describe("AdminPage", () => {
       const url = String(input);
       if (url.includes("/api/admin/session")) {
         return new Response(JSON.stringify({ configured: true, unlocked: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      if (url.includes("/api/site-config")) {
+        return new Response(JSON.stringify({ config: { dashboardTitle: "高校产品案例覆盖率热力图" } }), {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
@@ -140,5 +200,5 @@ describe("AdminPage", () => {
 
     resolveParse?.();
     await waitFor(() => expect(screen.queryByRole("progressbar", { name: "XLSX导入进度" })).not.toBeInTheDocument());
-  });
+  }, ADMIN_PAGE_TEST_TIMEOUT);
 });

@@ -601,6 +601,71 @@ describe("delivery api route", () => {
     });
   });
 
+  it("site-config GET 公开读取首页标题，PUT 需要管理权限并写入配置", async () => {
+    await withAdminToken("secret-token", async () => {
+      const store = {
+        readServerSiteConfig: vi.fn(async () => ({ dashboardTitle: "高校产品案例覆盖率热力图" })),
+        writeServerSiteConfig: vi.fn(async (config: { dashboardTitle: string }) => config),
+      };
+
+      vi.resetModules();
+      vi.doMock("@/lib/data/server-store", () => store);
+      const route = await import("@/app/api/site-config/route");
+
+      const getResponse = await route.GET();
+      expect(getResponse.status).toBe(200);
+      expect(await getResponse.json()).toEqual({
+        config: { dashboardTitle: "高校产品案例覆盖率热力图" },
+      });
+
+      const unauthorized = await route.PUT(
+        new Request("http://localhost/api/site-config", {
+          method: "PUT",
+          body: JSON.stringify({ dashboardTitle: "高校覆盖作战地图" }),
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+      expect(unauthorized.status).toBe(401);
+      expect(store.writeServerSiteConfig).not.toHaveBeenCalled();
+
+      const saved = await route.PUT(
+        new Request("http://localhost/api/site-config", {
+          method: "PUT",
+          body: JSON.stringify({ dashboardTitle: "高校覆盖作战地图" }),
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer secret-token",
+          },
+        }),
+      );
+      expect(saved.status).toBe(200);
+      expect(await saved.json()).toEqual({ config: { dashboardTitle: "高校覆盖作战地图" } });
+      expect(store.writeServerSiteConfig).toHaveBeenCalledWith({ dashboardTitle: "高校覆盖作战地图" });
+    });
+  });
+
+  it("site-config PUT 拒绝空白首页标题", async () => {
+    const store = {
+      readServerSiteConfig: vi.fn(async () => ({ dashboardTitle: "高校产品案例覆盖率热力图" })),
+      writeServerSiteConfig: vi.fn(),
+    };
+
+    vi.resetModules();
+    vi.doMock("@/lib/data/server-store", () => store);
+    const route = await import("@/app/api/site-config/route");
+    const response = await route.PUT(
+      new Request("http://localhost/api/site-config", {
+        method: "PUT",
+        body: JSON.stringify({ dashboardTitle: "   " }),
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "首页标题不能为空" });
+    expect(store.writeServerSiteConfig).not.toHaveBeenCalled();
+  });
+
   it("export GET 配置 ADMIN_API_TOKEN 后无 token 返回 401", async () => {
     await withAdminToken("secret-token", async () => {
       const store = {
@@ -807,6 +872,23 @@ describe("server store", () => {
       }
       vi.doUnmock("@vercel/blob");
       vi.resetModules();
+    }
+  });
+
+  it("本地站点配置写入后可以读取，并过滤空白标题", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "edu-site-config-"));
+    const filePath = path.join(dir, "site-config.local.json");
+
+    try {
+      const { readLocalSiteConfig, writeLocalSiteConfig } = await import("@/lib/data/server-store");
+
+      await writeLocalSiteConfig({ dashboardTitle: "  高校覆盖作战地图  " }, filePath);
+
+      expect(await readLocalSiteConfig(filePath)).toEqual({ dashboardTitle: "高校覆盖作战地图" });
+      expect(await readFile(filePath, "utf8")).toContain("高校覆盖作战地图");
+      await expect(writeLocalSiteConfig({ dashboardTitle: "   " }, filePath)).rejects.toThrow("首页标题不能为空");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
     }
   });
 

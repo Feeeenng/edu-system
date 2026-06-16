@@ -2,6 +2,8 @@ name: Docker Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
   workflow_dispatch:
@@ -22,6 +24,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: docker-release-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   DOCKER_IMAGE: feeeng/edu-system
 
@@ -39,6 +45,8 @@ jobs:
         run: |
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             version="${GITHUB_REF_NAME}"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            version="latest"
           else
             version="${{ inputs.tag }}"
           fi

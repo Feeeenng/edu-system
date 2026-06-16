@@ -88,3 +88,7 @@ export type DeliveryPayload = Omit<DeliveryRecord, "id" | "updatedAt"> & {
   id?: string;
   updatedAt?: string;
 };
+
+export type SiteConfig = {
+  dashboardTitle: string;
+};

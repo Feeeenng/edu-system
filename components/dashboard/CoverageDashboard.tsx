@@ -19,7 +19,9 @@ import type { ReactNode } from "react";
 import { getUniversityDetail } from "@/lib/analytics/summary";
 import { ChinaCoverageMap } from "@/components/dashboard/ChinaCoverageMap";
 import { useCoverageData } from "@/components/dashboard/useCoverageData";
-import type { DeliveryRecord, RegionMetric, UniversityDetail } from "@/lib/types";
+import { readSiteConfig } from "@/lib/data/site-config-client";
+import { DEFAULT_SITE_CONFIG, normalizeSiteConfig } from "@/lib/site-config";
+import type { DeliveryRecord, RegionMetric, SiteConfig, UniversityDetail } from "@/lib/types";
 import "./coverage-dashboard.css";
 
 const PRODUCT_ORDER = ["SDDC", "EDS", "桌面云", "FastGPT"];
@@ -27,6 +29,7 @@ const PURCHASE_ORDER = ["VMware替换", "信创", "AI超融合"];
 
 type CoverageDashboardProps = {
   initialRecords?: DeliveryRecord[];
+  initialSiteConfig?: SiteConfig;
 };
 
 type CoverageSortKey = "coverageRate" | "universityCount" | "totalUniversityCount";
@@ -187,9 +190,10 @@ function buildInsightItems(topRegions: RegionMetric[], bottomRegions: RegionMetr
   ];
 }
 
-export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {}) {
+export function CoverageDashboard({ initialRecords, initialSiteConfig }: CoverageDashboardProps = {}) {
   const [selectedProvince, setSelectedProvince] = useState<string>();
   const [adminHref, setAdminHref] = useState("/admin");
+  const [siteConfig, setSiteConfig] = useState(() => normalizeSiteConfig(initialSiteConfig ?? DEFAULT_SITE_CONFIG));
   const [coverageSort, setCoverageSort] = useState<{
     key: CoverageSortKey;
     direction: CoverageSortDirection;
@@ -275,6 +279,21 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
   }, []);
 
   useEffect(() => {
+    if (initialSiteConfig) return;
+
+    let active = true;
+    void readSiteConfig()
+      .then((config) => {
+        if (active && config) setSiteConfig(normalizeSiteConfig(config));
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [initialSiteConfig]);
+
+  useEffect(() => {
     if (!rankScopeRef.current || prefersReducedMotion()) return;
     const context = gsap.context(() => {
       gsap.fromTo(
@@ -342,7 +361,7 @@ export function CoverageDashboard({ initialRecords }: CoverageDashboardProps = {
       <section className="coverage-command" aria-label="高校案例覆盖筛选" data-hero-motion>
         <div className="command-title">
           <span className="coverage-eyebrow">University Case Coverage</span>
-          <h1>高校产品案例覆盖率热力图</h1>
+          <h1>{siteConfig.dashboardTitle}</h1>
         </div>
         <label className="coverage-search">
           <Search size={18} aria-hidden="true" />

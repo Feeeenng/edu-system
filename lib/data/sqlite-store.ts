@@ -5,7 +5,8 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { dedupeDeliveries } from "@/lib/data/dedupe";
 import { validateDeliveryRecordShape } from "@/lib/data/validation";
-import type { DeliveryRecord } from "@/lib/types";
+import { DEFAULT_SITE_CONFIG, normalizeSiteConfig, validateSiteConfigPayload } from "@/lib/site-config";
+import type { DeliveryRecord, SiteConfig } from "@/lib/types";
 
 const DEFAULT_SQLITE_PATH = path.join(process.cwd(), "data", "deliveries.sqlite");
 
@@ -33,6 +34,13 @@ function ensureSchema(db: SqlDatabase) {
     );
   `);
   db.run("create index if not exists deliveries_updated_at_idx on deliveries (updated_at desc);");
+  db.run(`
+    create table if not exists site_config (
+      id text primary key,
+      payload text not null,
+      updated_at text not null
+    );
+  `);
 }
 
 async function openDatabase(filePath = getSqlitePath()) {
@@ -112,6 +120,50 @@ export async function writeSqliteRecords(records: DeliveryRecord[], filePath = g
       // rollback 失败说明事务已经结束，继续抛出原始错误。
     }
     throw error;
+  } finally {
+    db.close();
+  }
+}
+
+function parseSiteConfig(payload: string): SiteConfig {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(payload);
+  } catch (error) {
+    throw new Error("SQLite 站点配置损坏：JSON 格式错误", { cause: error });
+  }
+
+  const result = validateSiteConfigPayload(parsed);
+  if (!result.ok) {
+    throw new Error(`SQLite 站点配置损坏：${result.error}`);
+  }
+
+  return result.config;
+}
+
+export async function readSqliteSiteConfig(filePath = getSqlitePath()): Promise<SiteConfig> {
+  const db = await openDatabase(filePath);
+  try {
+    const result = db.exec("select payload from site_config where id = 'default' limit 1");
+    const payload = result[0]?.values[0]?.[0];
+    return typeof payload === "string" ? parseSiteConfig(payload) : DEFAULT_SITE_CONFIG;
+  } finally {
+    db.close();
+  }
+}
+
+export async function writeSqliteSiteConfig(config: SiteConfig, filePath = getSqlitePath()) {
+  const validation = validateSiteConfigPayload(config);
+  if (!validation.ok) throw new Error(validation.error);
+
+  const db = await openDatabase(filePath);
+  try {
+    db.run(
+      "insert or replace into site_config (id, payload, updated_at) values (?, ?, ?);",
+      ["default", JSON.stringify(normalizeSiteConfig(validation.config)), new Date().toISOString()],
+    );
+    await persistDatabase(db, filePath);
+    return validation.config;
   } finally {
     db.close();
   }

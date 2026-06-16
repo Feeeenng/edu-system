@@ -330,6 +330,13 @@ export function ChinaCoverageMap({
         <i className="sea-dash dash-three" />
         <i className="sea-dash dash-four" />
       </div>
+      <div className="map-accessible-controls sr-only" aria-label="省份地图选择">
+        {metrics.map((metric) => (
+          <button key={metric.name} type="button" onClick={() => onSelectProvince(metric.name)}>
+            {metric.name}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

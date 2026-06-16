@@ -12,6 +12,7 @@ import {
   Plus,
   Save,
   Search,
+  Settings2,
   Trash2,
   X,
 } from "lucide-react";
@@ -20,8 +21,10 @@ import { COVERAGE_STATUSES } from "@/lib/coverage/status";
 import { createClientProvider } from "@/lib/data/client-provider";
 import { dedupeDeliveries, getDeliveryBusinessKey } from "@/lib/data/dedupe";
 import { createDeliveryRecord } from "@/lib/data/normalize";
+import { readSiteConfig, saveSiteConfig } from "@/lib/data/site-config-client";
 import { buildDeliveriesWorkbook, buildExcelTemplate, parseDeliveryExcel } from "@/lib/excel/workbook";
 import { getProvinceOptions } from "@/lib/regions/china-regions";
+import { DEFAULT_SITE_CONFIG, normalizeSiteConfig } from "@/lib/site-config";
 import type { DeliveryPayload, DeliveryRecord } from "@/lib/types";
 import "./admin-data-entry.css";
 
@@ -356,6 +359,8 @@ export function AdminDataEntry() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authMessage, setAuthMessage] = useState("请输入管理密码，解锁录入、导入、导出和删除操作。");
   const [homeHref, setHomeHref] = useState("/");
+  const [dashboardTitle, setDashboardTitle] = useState(DEFAULT_SITE_CONFIG.dashboardTitle);
+  const [siteConfigSaving, setSiteConfigSaving] = useState(false);
   const [importProgress, setImportProgress] = useState<ImportProgressState | null>(null);
   const providerRef = useRef<ReturnType<typeof createClientProvider> | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -441,6 +446,22 @@ export function AdminDataEntry() {
         setReady(true);
       });
   }, [getProvider]);
+
+  useEffect(() => {
+    let active = true;
+    void readSiteConfig()
+      .then((config) => {
+        if (active && config) setDashboardTitle(normalizeSiteConfig(config).dashboardTitle);
+      })
+      .catch((loadError) => {
+        if (!active) return;
+        setMessage(loadError instanceof Error ? loadError.message : "首页标题配置读取失败");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const updateField = (field: EntryField) => {
     return (value: string) => {
@@ -559,6 +580,27 @@ export function AdminDataEntry() {
       setAdminPassword("");
       setAuthMessage("已退出管理模式，请重新输入管理密码。");
       setMessage("已退出管理模式，录入和维护操作已锁定。");
+    }
+  };
+
+  const updateDashboardTitle = async () => {
+    if (!requireAdminUnlocked()) return;
+
+    const title = dashboardTitle.trim();
+    if (!title) {
+      setMessage("首页标题不能为空。");
+      return;
+    }
+
+    try {
+      setSiteConfigSaving(true);
+      const config = await saveSiteConfig({ dashboardTitle: title });
+      setDashboardTitle(normalizeSiteConfig(config).dashboardTitle);
+      setMessage("首页标题已保存，首页刷新后生效。");
+    } catch (saveError) {
+      setMessage(saveError instanceof Error ? saveError.message : "首页标题保存失败");
+    } finally {
+      setSiteConfigSaving(false);
     }
   };
 
@@ -843,6 +885,33 @@ export function AdminDataEntry() {
           <span>当前筛选</span>
           <strong>{filteredRecords.length}</strong>
         </div>
+      </section>
+
+      <section className="site-config-panel" aria-label="首页展示配置">
+        <div>
+          <span>Dashboard Settings</span>
+          <h2>首页展示配置</h2>
+          <p>维护首页顶部主标题，保存后刷新首页即可查看最新文案。</p>
+        </div>
+        <label>
+          <span>首页标题</span>
+          <input
+            aria-label="首页标题"
+            value={dashboardTitle}
+            disabled={!adminUnlocked || siteConfigSaving}
+            maxLength={40}
+            onChange={(event) => setDashboardTitle(event.target.value)}
+          />
+        </label>
+        <button
+          className="site-config-submit"
+          type="button"
+          disabled={!adminUnlocked || siteConfigSaving}
+          onClick={() => void updateDashboardTitle()}
+        >
+          <Settings2 size={16} aria-hidden="true" />
+          {siteConfigSaving ? "保存中" : "保存首页标题"}
+        </button>
       </section>
 
       <section className="entry-compose" aria-label="新增高校信息记录">

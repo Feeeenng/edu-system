@@ -72,7 +72,7 @@ bun run docker:push
 sh scripts/docker-build-push.sh --tag v1.0.0 --push
 ```
 
-GitHub Actions 会在推送 `v*` 标签时自动构建并推送 Docker 镜像，同时创建 GitHub Release。需要在仓库 Secrets 中配置：
+GitHub Actions 会在推送到 `main` 分支时自动构建并推送 `feeeng/edu-system:latest` 镜像；推送 `v*` 标签时会构建对应版本镜像并创建 GitHub Release。需要在仓库 Secrets 中配置：
 
 ```text
 DOCKERHUB_USERNAME

@@ -1,7 +1,8 @@
 import "server-only";
 import { dedupeDeliveries } from "@/lib/data/dedupe";
 import { validateDeliveryRecordShape } from "@/lib/data/validation";
-import type { DeliveryRecord } from "@/lib/types";
+import { DEFAULT_SITE_CONFIG, normalizeSiteConfig, validateSiteConfigPayload } from "@/lib/site-config";
+import type { DeliveryRecord, SiteConfig } from "@/lib/types";
 
 type SupabaseDeliveryRow = {
   id: string;
@@ -14,6 +15,12 @@ type SupabaseErrorPayload = {
   message?: string;
   details?: string | null;
   hint?: string | null;
+};
+
+type SupabaseSiteConfigRow = {
+  id: string;
+  payload: unknown;
+  updated_at: string;
 };
 
 function getSupabaseConfig() {
@@ -89,6 +96,15 @@ function toSupabaseRows(records: DeliveryRecord[]) {
   }));
 }
 
+function normalizeSiteConfigRow(row: SupabaseSiteConfigRow): SiteConfig {
+  const result = validateSiteConfigPayload(row.payload);
+  if (!result.ok) {
+    throw new Error(`Supabase 站点配置损坏：${result.error}`);
+  }
+
+  return result.config;
+}
+
 function quotePostgrestValue(value: string) {
   return encodeURIComponent(`"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`);
 }
@@ -122,4 +138,31 @@ export async function writeSupabaseRecords(records: DeliveryRecord[]) {
 
   await requestSupabase(`deliveries?id=not.in.(${ids.map(quotePostgrestValue).join(",")})`, { method: "DELETE" });
   return dedupeDeliveries(savedRows.map(normalizeRow));
+}
+
+export async function readSupabaseSiteConfig(): Promise<SiteConfig> {
+  const response = await requestSupabase("site_config?select=id,payload,updated_at&id=eq.default&limit=1", {
+    method: "GET",
+  });
+  const rows = (await response.json()) as SupabaseSiteConfigRow[];
+  return rows[0] ? normalizeSiteConfigRow(rows[0]) : DEFAULT_SITE_CONFIG;
+}
+
+export async function writeSupabaseSiteConfig(config: SiteConfig) {
+  const validation = validateSiteConfigPayload(config);
+  if (!validation.ok) throw new Error(validation.error);
+
+  const response = await requestSupabase("site_config?on_conflict=id", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+    body: JSON.stringify([
+      {
+        id: "default",
+        payload: normalizeSiteConfig(validation.config),
+        updated_at: new Date().toISOString(),
+      },
+    ]),
+  });
+  const rows = (await response.json()) as SupabaseSiteConfigRow[];
+  return rows[0] ? normalizeSiteConfigRow(rows[0]) : validation.config;
 }

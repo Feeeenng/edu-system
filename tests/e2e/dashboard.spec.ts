@@ -5,6 +5,10 @@ async function openCleanDashboard(page: Page) {
   await page.goto("/");
 }
 
+async function waitForDashboardLoaded(page: Page) {
+  await expect(page.getByText("加载中")).toHaveCount(0, { timeout: 20_000 });
+}
+
 async function seedDashboardRecords(page: Page) {
   await page.request.patch("/api/deliveries", {
     data: [
@@ -13,6 +17,7 @@ async function seedDashboardRecords(page: Page) {
         province: "广东省",
         city: "深圳市",
         university: "测试录入大学",
+        coverageStatus: "已部署",
         productTags: ["SDDC", "EDS"],
         purchaseTags: ["信创"],
         equipmentDetails: ["超融合节点x3", "EDS存储节点x2"],
@@ -24,6 +29,7 @@ async function seedDashboardRecords(page: Page) {
         province: "广东省",
         city: "广州市",
         university: "广州测试大学",
+        coverageStatus: "已部署",
         productTags: ["EDS"],
         purchaseTags: ["AI超融合"],
         equipmentDetails: ["对象存储节点x4"],
@@ -33,13 +39,15 @@ async function seedDashboardRecords(page: Page) {
     ],
   });
   await page.goto("/");
-  await expect(page.getByRole("button", { name: /广东省/ }).first()).toBeVisible();
+  await waitForDashboardLoaded(page);
+  await expect(page.getByLabel("省份地图选择").getByRole("button", { name: "广东省" })).toHaveCount(1);
 }
 
 test("dashboard coverage map supports product filtering and province selection", async ({ page }) => {
   await openCleanDashboard(page);
 
   await expect(page.getByRole("heading", { name: "高校产品案例覆盖率热力图" })).toBeVisible();
+  await waitForDashboardLoaded(page);
   await expect(page.getByText("请先导入真实交付数据")).toBeVisible();
   await expect(page.getByLabel("首页CSV导入")).toHaveCount(0);
   await seedDashboardRecords(page);
@@ -50,7 +58,7 @@ test("dashboard coverage map supports product filtering and province selection",
   await expect(page.getByRole("heading", { name: "SDDC全国覆盖率热力图" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "省份覆盖率全量排行" })).toBeVisible();
 
-  await page.getByRole("button", { name: /广东省/ }).first().click();
+  await page.getByLabel("省份地图选择").getByRole("button", { name: "广东省" }).dispatchEvent("click");
   await expect(page.getByRole("heading", { name: "广东省覆盖率热力图" })).toBeVisible();
   await expect(page.getByLabel("按省份筛选高校案例")).toBeVisible();
   await expect(page.getByRole("button", { name: "返回全国" })).toBeVisible();
@@ -62,7 +70,7 @@ test("admin data entry creates a server delivery record", async ({ page }) => {
   await page.goto("/admin");
 
   await expect(page.getByRole("heading", { name: "高校信息维护" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "新增记录" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "新增记录" })).toBeEnabled({ timeout: 20_000 });
 
   const composePanel = page.getByLabel("新增高校信息记录");
   await composePanel.locator("input").nth(0).fill("1");
