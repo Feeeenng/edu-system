@@ -1,0 +1,261 @@
+.management-shell {
+  min-height: 100vh;
+  background: #f5f7fa;
+}
+
+.management-sider {
+  position: sticky !important;
+  top: 0;
+  height: 100vh;
+  overflow: hidden auto;
+  border-right: 1px solid #eaecf0;
+  background: #ffffff !important;
+}
+
+.management-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 64px;
+  padding: 0 20px;
+  border-bottom: 1px solid #f0f2f5;
+  color: #1d2939;
+}
+
+.management-brand-mark {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 7px;
+  color: #ffffff;
+  background: #1677ff;
+  font-size: 17px;
+}
+
+.management-brand strong,
+.management-brand span {
+  display: block;
+}
+
+.management-brand strong {
+  font-size: 16px;
+  line-height: 20px;
+}
+
+.management-brand span {
+  color: #98a2b3;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.management-sider .ant-menu {
+  padding: 16px 8px;
+  border-inline-end: 0;
+}
+
+.management-collapse-footer {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  color: #667085;
+}
+
+.management-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  padding: 0 24px;
+  border-bottom: 1px solid #eaecf0;
+  background: #ffffff;
+}
+
+.management-header-left {
+  min-width: 0;
+}
+
+.management-header-search {
+  width: 294px;
+}
+
+.management-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.management-content {
+  min-width: 0;
+  padding: 24px;
+}
+
+.management-page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.management-page-heading .ant-typography {
+  margin-bottom: 4px;
+}
+
+.management-page-heading h2.ant-typography {
+  color: #1d2939;
+  font-size: 24px;
+  line-height: 32px;
+}
+
+.management-page-heading p.ant-typography {
+  color: #667085;
+}
+
+.management-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.management-metric-card {
+  height: 100%;
+  border: 1px solid #eaecf0;
+  box-shadow: none;
+}
+
+.management-metric-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.management-metric-card .ant-statistic-title {
+  color: #667085;
+  font-size: 13px;
+}
+
+.management-metric-card .ant-statistic-content {
+  font-size: 25px;
+  font-weight: 650;
+}
+
+.management-metric-icon {
+  display: grid;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 12px;
+  font-size: 24px;
+}
+
+.management-metric-icon-blue {
+  color: #1677ff;
+  background: #eff6ff;
+}
+
+.management-metric-icon-green {
+  color: #12b76a;
+  background: #ecfdf3;
+}
+
+.management-metric-icon-orange {
+  color: #f79009;
+  background: #fff7ed;
+}
+
+.management-metric-icon-purple {
+  color: #7f56d9;
+  background: #f4f3ff;
+}
+
+.management-workbench {
+  border: 1px solid #eaecf0;
+  box-shadow: none;
+}
+
+.management-workbench .ant-card-body {
+  padding: 0;
+}
+
+.management-settings-card {
+  max-width: 680px;
+  border: 1px solid #eaecf0;
+  box-shadow: none;
+}
+
+.management-auth-placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 480px;
+}
+
+.management-settings-intro {
+  color: #1677ff;
+  font-size: 22px;
+}
+
+.management-settings-intro .ant-typography {
+  margin-bottom: 4px;
+}
+
+.management-settings-intro .ant-typography-secondary {
+  font-size: 14px;
+}
+
+.management-settings-form {
+  max-width: 480px;
+  margin-top: 28px;
+}
+
+.management-toolbar {
+  min-height: 64px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #eaecf0;
+}
+
+.data-toolbar-search {
+  width: 360px;
+  max-width: 100%;
+}
+
+.data-toolbar-filters {
+  min-width: 0;
+}
+
+.data-toolbar-select {
+  width: 144px;
+}
+
+@media (max-width: 768px) {
+  .management-header {
+    padding: 0 12px;
+  }
+
+  .management-content {
+    padding: 16px;
+  }
+
+  .management-page-heading {
+    display: block;
+  }
+
+  .management-page-heading > .ant-tag {
+    margin-top: 8px;
+  }
+
+  .management-toolbar {
+    padding: 12px;
+  }
+
+  .data-toolbar-filters {
+    width: 100%;
+  }
+
+  .data-toolbar-search,
+  .data-toolbar-select {
+    width: 100%;
+  }
+}

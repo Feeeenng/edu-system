@@ -13,8 +13,15 @@ create table if not exists public.site_config (
   updated_at timestamptz not null
 );
 
+create table if not exists public.admin_settings (
+  id text primary key,
+  password_hash text not null,
+  updated_at timestamptz not null
+);
+
 alter table public.deliveries enable row level security;
 alter table public.site_config enable row level security;
+alter table public.admin_settings enable row level security;
 
 drop policy if exists deliveries_anon_select on public.deliveries;
 create policy deliveries_anon_select

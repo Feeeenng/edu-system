@@ -3,7 +3,7 @@ import { readServerRecords } from "@/lib/data/server-store";
 import { buildDeliveriesWorkbook } from "@/lib/excel/workbook";
 
 export async function GET(request: Request) {
-  const unauthorized = requireAdminRequest(request);
+  const unauthorized = await requireAdminRequest(request);
   if (unauthorized) return unauthorized;
 
   const workbook = buildDeliveriesWorkbook(await readServerRecords());
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const unauthorized = requireAdminRequest(request);
+  const unauthorized = await requireAdminRequest(request);
   if (unauthorized) return unauthorized;
 
   return new Response(null, { status: 405 });

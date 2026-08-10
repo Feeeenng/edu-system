@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "antd/dist/reset.css";
+import "@/components/ui/management-ui.css";
 import "./globals.css";
 
 export const metadata: Metadata = {

@@ -37,7 +37,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const unauthorized = requireAdminRequest(request);
+  const unauthorized = await requireAdminRequest(request);
   if (unauthorized) return unauthorized;
 
   const body = await readJsonBody(request);
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const unauthorized = requireAdminRequest(request);
+  const unauthorized = await requireAdminRequest(request);
   if (unauthorized) return unauthorized;
 
   const body = await readJsonBody(request);
@@ -88,7 +88,7 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const unauthorized = requireAdminRequest(request);
+  const unauthorized = await requireAdminRequest(request);
   if (unauthorized) return unauthorized;
 
   const body = await readJsonBody(request);
@@ -124,7 +124,7 @@ export async function DELETE(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const unauthorized = requireAdminRequest(request);
+  const unauthorized = await requireAdminRequest(request);
   if (unauthorized) return unauthorized;
 
   const body = await readJsonBody(request);

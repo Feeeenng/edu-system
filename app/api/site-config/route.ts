@@ -27,7 +27,7 @@ export async function PUT(request: Request) {
   const validation = validateSiteConfigPayload(body.data);
   if (!validation.ok) return jsonError(validation.error, 400);
 
-  const unauthorized = requireAdminRequest(request);
+  const unauthorized = await requireAdminRequest(request);
   if (unauthorized) return unauthorized;
 
   const config = await writeServerSiteConfig(validation.config);

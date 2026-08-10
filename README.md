@@ -100,7 +100,7 @@ SQLITE_DB_PATH=/app/data/deliveries.sqlite
 PORT=3000
 ```
 
-因此本地 Docker 部署只需要关注管理密码和数据目录挂载。`docker-compose.yml` 为方便首次启动提供了默认 `ADMIN_API_TOKEN=admin123`，正式使用时建议在 shell 或 `.env` 中覆盖。
+因此本地 Docker 部署只需要关注管理密码和数据目录挂载。未配置时，首次管理密码为 `123456`；正式使用时应在 shell 或 `.env` 中覆盖，或首次登录后立即在“系统设置 / 安全 / 密码修改”中修改。保存新密码后，系统会将其加盐哈希写入同一 SQLite 数据库，并优先使用数据库密码。
 
 ### SQLite 本地服务模式
 
@@ -127,10 +127,13 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=你的 publishable key
 
 ```bash
 DATA_STORE=supabase
-ADMIN_API_TOKEN=管理接口访问令牌
+ADMIN_API_TOKEN=首次部署管理密码
+SUPABASE_SERVICE_ROLE_KEY=仅服务端使用的 service_role key
 ```
 
-`ADMIN_API_TOKEN` 用来保护新增、删除、批量替换和导出等管理接口。部署到 Vercel 或生产环境时必须配置；进入 `/admin` 页面后输入这串密码，服务端验证通过后会写入 HttpOnly Cookie，后续管理操作会自动带上同域会话。
+`ADMIN_API_TOKEN` 是首次部署或尚未设置数据库密码时的引导密码；未配置时默认使用 `123456`。进入 `/admin` 后输入密码，服务端验证通过会写入 HttpOnly Cookie，未验证前不会加载或显示高校业务数据。在“系统设置 / 安全 / 密码修改”中保存新密码后，系统会将带随机盐的 scrypt 哈希保存至 `admin_settings` 表，数据库密码优先于 `ADMIN_API_TOKEN`，旧会话随之失效。
+
+`SUPABASE_SERVICE_ROLE_KEY` 仅用于服务端读写管理员密码哈希，绝不能使用 `NEXT_PUBLIC_` 前缀或暴露给浏览器。若部署仅配置 Vercel Blob，管理员密码设置无法满足数据库存储要求，需要改用 Supabase 或 SQLite。
 
 在 GitHub Actions 里使用 GitHub Variables 时，需要把 `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` 传给 Vercel 部署命令或 Vercel 项目环境变量；只创建 GitHub Variables 但没有注入运行时，Next.js 服务端读取不到这些值。
 
@@ -151,7 +154,7 @@ create index if not exists deliveries_updated_at_idx
   on public.deliveries (updated_at desc);
 ```
 
-因为当前按你的变量使用 `publishable key`，Supabase 侧需要给 `anon` 角色配置 `deliveries` 表的读写策略。管理入口仍由本项目的 `ADMIN_API_TOKEN` 保护，浏览器不会直接请求 Supabase，也不需要把管理密码暴露给浏览器或写入浏览器存储。
+因为当前按你的变量使用 `publishable key`，Supabase 侧需要给 `anon` 角色配置 `deliveries` 表的读写策略。`admin_settings` 表已启用 RLS 且不授予 `anon` 策略，只允许服务端使用 `SUPABASE_SERVICE_ROLE_KEY` 访问；浏览器不会直接请求 Supabase，也不会保存管理密码或密码哈希。
 
 ## XLSX 字段
 

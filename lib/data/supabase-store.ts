@@ -23,6 +23,12 @@ type SupabaseSiteConfigRow = {
   updated_at: string;
 };
 
+type SupabaseAdminSettingsRow = {
+  id: string;
+  password_hash: string;
+  updated_at: string;
+};
+
 function getSupabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const token = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -64,6 +70,33 @@ async function requestSupabase(path: string, init: RequestInit = {}) {
     }
 
     throw new Error(`Supabase 请求失败：HTTP ${response.status}${detail ? ` - ${detail}` : ""}`);
+  }
+
+  return response;
+}
+
+async function requestSupabaseAdmin(path: string, init: RequestInit = {}) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceRoleKey) {
+    throw new Error("管理员密码存储需要配置 NEXT_PUBLIC_SUPABASE_URL 和 SUPABASE_SERVICE_ROLE_KEY");
+  }
+
+  const response = await fetch(`${url.replace(/\/$/, "")}/rest/v1/${path}`, {
+    ...init,
+    headers: {
+      apikey: serviceRoleKey,
+      authorization: `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+      ...(init.headers ?? {}),
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`Supabase 管理员设置请求失败：HTTP ${response.status}${detail ? ` - ${detail}` : ""}`);
   }
 
   return response;
@@ -165,4 +198,28 @@ export async function writeSupabaseSiteConfig(config: SiteConfig) {
   });
   const rows = (await response.json()) as SupabaseSiteConfigRow[];
   return rows[0] ? normalizeSiteConfigRow(rows[0]) : validation.config;
+}
+
+/** 使用 Supabase 服务角色读取管理员密码哈希，拒绝匿名访问。 */
+export async function readSupabaseAdminPasswordHash() {
+  const response = await requestSupabaseAdmin("admin_settings?select=id,password_hash,updated_at&id=eq.default&limit=1", {
+    method: "GET",
+  });
+  const rows = (await response.json()) as SupabaseAdminSettingsRow[];
+  return rows[0]?.password_hash;
+}
+
+/** 使用 Supabase 服务角色保存管理员密码哈希。 */
+export async function writeSupabaseAdminPasswordHash(passwordHash: string) {
+  await requestSupabaseAdmin("admin_settings?on_conflict=id", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+    body: JSON.stringify([
+      {
+        id: "default",
+        password_hash: passwordHash,
+        updated_at: new Date().toISOString(),
+      },
+    ]),
+  });
 }

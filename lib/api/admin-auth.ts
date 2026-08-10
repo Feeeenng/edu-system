@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { getAdminCredential, verifyAdminPassword } from "@/lib/api/admin-credential";
 
 export const ADMIN_SESSION_COOKIE_NAME = "edu-system.admin-session";
 
@@ -45,8 +46,8 @@ function readCookie(request: Request, name: string) {
   }
 }
 
-function signSession(timestamp: string, expectedToken: string) {
-  return createHmac("sha256", expectedToken).update(timestamp).digest("hex");
+function signSession(timestamp: string, sessionSecret: string) {
+  return createHmac("sha256", sessionSecret).update(timestamp).digest("hex");
 }
 
 function safeEqualHex(left: string, right: string) {
@@ -55,12 +56,12 @@ function safeEqualHex(left: string, right: string) {
   return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
 }
 
-export function createAdminSessionValue(expectedToken: string, now = Date.now()) {
+export function createAdminSessionValue(sessionSecret: string, now = Date.now()) {
   const timestamp = String(now);
-  return `${timestamp}.${signSession(timestamp, expectedToken)}`;
+  return `${timestamp}.${signSession(timestamp, sessionSecret)}`;
 }
 
-export function isValidAdminSessionValue(value: string | undefined, expectedToken: string, now = Date.now()) {
+export function isValidAdminSessionValue(value: string | undefined, sessionSecret: string, now = Date.now()) {
   if (!value) return false;
 
   const parts = value.split(".");
@@ -74,12 +75,13 @@ export function isValidAdminSessionValue(value: string | undefined, expectedToke
     return false;
   }
 
-  return safeEqualHex(signature, signSession(timestamp, expectedToken));
+  return safeEqualHex(signature, signSession(timestamp, sessionSecret));
 }
 
-export function getAdminAuthStatus(request: Request) {
-  const expectedToken = process.env.ADMIN_API_TOKEN;
-  if (!expectedToken) {
+/** 读取当前会话状态，优先使用数据库中的管理员密码哈希。 */
+export async function getAdminAuthStatus(request: Request) {
+  const credential = await getAdminCredential();
+  if (!credential) {
     return {
       configured: false,
       unlocked: !shouldFailClosed(),
@@ -89,13 +91,14 @@ export function getAdminAuthStatus(request: Request) {
 
   return {
     configured: true,
-    unlocked: isValidAdminSessionValue(readCookie(request, ADMIN_SESSION_COOKIE_NAME), expectedToken),
+    source: credential.source,
+    unlocked: isValidAdminSessionValue(readCookie(request, ADMIN_SESSION_COOKIE_NAME), credential.sessionSecret),
     failClosed: false,
   };
 }
 
-export function setAdminSessionCookie(response: NextResponse, request: Request, expectedToken: string) {
-  response.cookies.set(ADMIN_SESSION_COOKIE_NAME, createAdminSessionValue(expectedToken), {
+export function setAdminSessionCookie(response: NextResponse, request: Request, sessionSecret: string) {
+  response.cookies.set(ADMIN_SESSION_COOKIE_NAME, createAdminSessionValue(sessionSecret), {
     httpOnly: true,
     maxAge: ADMIN_SESSION_MAX_AGE_SECONDS,
     path: "/",
@@ -114,18 +117,19 @@ export function clearAdminSessionCookie(response: NextResponse, request: Request
   });
 }
 
-export function requireAdminRequest(request: Request): Response | undefined {
-  const expectedToken = process.env.ADMIN_API_TOKEN;
-  if (!expectedToken && shouldFailClosed()) {
-    return NextResponse.json({ error: "管理接口未配置 ADMIN_API_TOKEN" }, { status: 500 });
+/** 验证 Cookie 或 Bearer 管理员密码，未配置凭据时生产环境保持拒绝访问。 */
+export async function requireAdminRequest(request: Request): Promise<Response | undefined> {
+  const credential = await getAdminCredential();
+  if (!credential && shouldFailClosed()) {
+    return NextResponse.json({ error: "管理接口未配置管理员密码" }, { status: 500 });
   }
 
-  if (!expectedToken) return undefined;
+  if (!credential) return undefined;
 
-  const actualToken = readBearerToken(request) ?? request.headers.get("x-admin-token") ?? undefined;
-  if (actualToken === expectedToken) return undefined;
+  const actualPassword = readBearerToken(request) ?? request.headers.get("x-admin-token") ?? undefined;
+  if (actualPassword && await verifyAdminPassword(actualPassword, credential)) return undefined;
 
-  if (isValidAdminSessionValue(readCookie(request, ADMIN_SESSION_COOKIE_NAME), expectedToken)) return undefined;
+  if (isValidAdminSessionValue(readCookie(request, ADMIN_SESSION_COOKIE_NAME), credential.sessionSecret)) return undefined;
 
   return NextResponse.json({ error: "未授权访问" }, { status: 401 });
 }

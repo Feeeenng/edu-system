@@ -41,6 +41,13 @@ function ensureSchema(db: SqlDatabase) {
       updated_at text not null
     );
   `);
+  db.run(`
+    create table if not exists admin_settings (
+      id text primary key,
+      password_hash text not null,
+      updated_at text not null
+    );
+  `);
 }
 
 async function openDatabase(filePath = getSqlitePath()) {
@@ -164,6 +171,32 @@ export async function writeSqliteSiteConfig(config: SiteConfig, filePath = getSq
     );
     await persistDatabase(db, filePath);
     return validation.config;
+  } finally {
+    db.close();
+  }
+}
+
+/** 读取 SQLite 中已加盐哈希的管理员密码，不返回明文。 */
+export async function readSqliteAdminPasswordHash(filePath = getSqlitePath()) {
+  const db = await openDatabase(filePath);
+  try {
+    const result = db.exec("select password_hash from admin_settings where id = 'default' limit 1");
+    const passwordHash = result[0]?.values[0]?.[0];
+    return typeof passwordHash === "string" ? passwordHash : undefined;
+  } finally {
+    db.close();
+  }
+}
+
+/** 将管理员密码哈希写入 SQLite，覆盖旧哈希以使旧会话失效。 */
+export async function writeSqliteAdminPasswordHash(passwordHash: string, filePath = getSqlitePath()) {
+  const db = await openDatabase(filePath);
+  try {
+    db.run(
+      "insert or replace into admin_settings (id, password_hash, updated_at) values (?, ?, ?);",
+      ["default", passwordHash, new Date().toISOString()],
+    );
+    await persistDatabase(db, filePath);
   } finally {
     db.close();
   }

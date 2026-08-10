@@ -4,7 +4,7 @@ import { parseDeliveryCsv } from "@/lib/csv/parse";
 import { replaceServerRecords } from "@/lib/data/server-store";
 
 export async function POST(request: Request) {
-  const unauthorized = requireAdminRequest(request);
+  const unauthorized = await requireAdminRequest(request);
   if (unauthorized) return unauthorized;
 
   const body = await request.text();

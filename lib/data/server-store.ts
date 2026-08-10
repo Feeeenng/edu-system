@@ -6,13 +6,17 @@ import { dedupeDeliveries } from "@/lib/data/dedupe";
 import { createDeliveryRecord } from "@/lib/data/normalize";
 import {
   readSqliteRecords,
+  readSqliteAdminPasswordHash,
   readSqliteSiteConfig,
+  writeSqliteAdminPasswordHash,
   writeSqliteRecords,
   writeSqliteSiteConfig,
 } from "@/lib/data/sqlite-store";
 import {
   readSupabaseRecords,
+  readSupabaseAdminPasswordHash,
   readSupabaseSiteConfig,
+  writeSupabaseAdminPasswordHash,
   writeSupabaseRecords,
   writeSupabaseSiteConfig,
 } from "@/lib/data/supabase-store";
@@ -351,6 +355,27 @@ export async function writeServerSiteConfig(config: SiteConfig) {
   if (shouldUseSqliteStore()) return writeSqliteSiteConfig(validation.config);
   if (shouldUseBlobStore()) return mutateBlobSiteConfig(validation.config);
   return writeLocalSiteConfig(validation.config);
+}
+
+/** 读取数据库中的管理员密码哈希；未设置时回退到环境变量引导流程。 */
+export async function readServerAdminPasswordHash() {
+  if (shouldUseSupabaseStore()) {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return undefined;
+    return readSupabaseAdminPasswordHash();
+  }
+  if (shouldUseBlobStore()) return undefined;
+  return readSqliteAdminPasswordHash();
+}
+
+/** 持久化管理员密码哈希。Vercel Blob 部署必须改用 Supabase 数据库。 */
+export async function writeServerAdminPasswordHash(passwordHash: string) {
+  if (shouldUseSupabaseStore()) {
+    return writeSupabaseAdminPasswordHash(passwordHash);
+  }
+  if (shouldUseBlobStore()) {
+    throw new Error("Vercel Blob 不支持管理员密码数据库存储，请配置 Supabase 数据库");
+  }
+  return writeSqliteAdminPasswordHash(passwordHash);
 }
 
 export async function mutateServerRecords(mutator: ServerRecordsMutator) {
