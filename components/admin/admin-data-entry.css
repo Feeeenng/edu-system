@@ -119,11 +119,16 @@
 }
 
 .summary-card {
-  position: relative;
   height: 100%;
-  overflow: hidden;
   border: 1px solid #eaecf0;
   box-shadow: none;
+}
+
+.summary-card-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .summary-card .ant-statistic-title {
@@ -136,33 +141,34 @@
   font-weight: 650;
 }
 
-.summary-card .ant-statistic-content-prefix {
-  margin-inline-end: 12px;
-  font-size: 22px;
+.summary-icon {
+  display: grid;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 12px;
+  font-size: 24px;
 }
 
-.summary-accent {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 3px;
+.summary-icon-blue {
+  color: #1677ff;
+  background: #eff6ff;
 }
 
-.summary-accent-blue {
-  background: #1677ff;
+.summary-icon-green {
+  color: #12b76a;
+  background: #ecfdf3;
 }
 
-.summary-accent-green {
-  background: #16a34a;
+.summary-icon-orange {
+  color: #f79009;
+  background: #fff7ed;
 }
 
-.summary-accent-orange {
-  background: #f59e0b;
-}
-
-.summary-accent-purple {
-  background: #7c3aed;
+.summary-icon-purple {
+  color: #7f56d9;
+  background: #f4f3ff;
 }
 
 .university-workbench {
@@ -176,31 +182,21 @@
 
 .workbench-title {
   min-height: 64px;
-  padding: 0 20px;
+  padding: 12px 20px;
   border-bottom: 1px solid #eaecf0;
 }
 
-.workbench-title .ant-tabs {
-  align-self: stretch;
+.table-title-search {
+  width: 360px;
+  max-width: 100%;
 }
 
-.workbench-title .ant-tabs-nav {
-  height: 64px;
-  margin: 0;
+.table-title-filters {
+  min-width: 0;
 }
 
-.workbench-title .ant-tabs-content-holder {
-  display: none;
-}
-
-.filter-bar {
-  display: grid;
-  grid-template-columns: minmax(220px, 1.6fr) repeat(3, minmax(130px, 0.8fr)) auto auto;
-  gap: 12px;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid #eaecf0;
-  background: #fcfcfd;
+.table-toolbar-select {
+  width: 144px;
 }
 
 .university-table {
@@ -221,12 +217,6 @@
 
 .university-table .ant-pagination {
   padding: 0 8px;
-}
-
-@media (max-width: 1100px) {
-  .filter-bar {
-    grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(150px, 1fr)) auto;
-  }
 }
 
 @media (max-width: 768px) {
@@ -250,8 +240,12 @@
     padding: 12px;
   }
 
-  .filter-bar {
-    grid-template-columns: 1fr;
-    padding: 12px;
+  .table-title-filters {
+    width: 100%;
+  }
+
+  .table-title-search,
+  .table-toolbar-select {
+    width: 100%;
   }
 }

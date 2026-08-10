@@ -6,13 +6,18 @@ import {
   BellOutlined,
   BookOutlined,
   CloudServerOutlined,
+  ContainerOutlined,
   DatabaseOutlined,
   DeleteOutlined,
   DeploymentUnitOutlined,
   DownloadOutlined,
+  EnvironmentFilled,
+  FileTextFilled,
   FileExcelOutlined,
   FileTextOutlined,
+  FilterFilled,
   FilterOutlined,
+  HddOutlined,
   HomeOutlined,
   ImportOutlined,
   LeftOutlined,
@@ -54,7 +59,6 @@ import {
   Statistic,
   Table,
   Tag,
-  Tabs,
   Tooltip,
   Typography,
   Upload,
@@ -557,16 +561,18 @@ function AdminDataEntryContent() {
 
           <Row gutter={[16, 16]} className="summary-row">
             {[
-              ["总记录", records.length, <FileTextOutlined key="file" />, "blue"],
-              ["覆盖省份", overview.provinceCount, <BankOutlined key="bank" />, "green"],
-              ["已部署", overview.deployedCount, <DeploymentUnitOutlined key="deploy" />, "blue"],
-              ["待补充", overview.incompleteCount, <FileExcelOutlined key="excel" />, "orange"],
-              ["当前筛选", filteredRecords.length, <FilterOutlined key="filter" />, "purple"],
-            ].map(([label, value, icon, tone]) => (
-              <Col xs={24} sm={12} lg={8} xl={4} flex="1 1 190px" key={String(label)}>
+              { label: "总记录", value: records.length, icon: <FileTextFilled />, tone: "blue" },
+              { label: "覆盖省份", value: overview.provinceCount, icon: <EnvironmentFilled />, tone: "green" },
+              { label: "已部署", value: overview.deployedCount, icon: <HddOutlined />, tone: "blue" },
+              { label: "待补充", value: overview.incompleteCount, icon: <ContainerOutlined />, tone: "orange" },
+              { label: "当前筛选", value: filteredRecords.length, icon: <FilterFilled />, tone: "purple" },
+            ].map(({ label, value, icon, tone }) => (
+              <Col xs={24} sm={12} lg={8} xl={4} flex="1 1 190px" key={label}>
                 <Card className="summary-card" size="small">
-                  <Statistic title={label as string} value={value as number} prefix={icon as React.ReactNode} valueStyle={{ color: "#1d2939" }} />
-                  <span className={`summary-accent summary-accent-${tone}`} />
+                  <div className="summary-card-content">
+                    <Statistic title={label} value={value} valueStyle={{ color: "#1d2939" }} />
+                    <span className={`summary-icon summary-icon-${tone}`} aria-hidden="true">{icon}</span>
+                  </div>
                 </Card>
               </Col>
             ))}
@@ -574,7 +580,21 @@ function AdminDataEntryContent() {
 
           <Card className="university-workbench" bordered={false}>
             <Flex className="workbench-title" justify="space-between" align="center" wrap gap={16}>
-              <Tabs activeKey="list" items={[{ key: "list", label: "高校列表" }]} />
+              <Flex className="table-title-filters" align="center" wrap gap={12}>
+                <Input
+                  allowClear
+                  className="table-title-search"
+                  prefix={<SearchOutlined />}
+                  placeholder="搜索高校名称、ID、设备型号等"
+                  value={filters.keyword}
+                  onChange={(event) => setFilters((value) => ({ ...value, keyword: event.target.value }))}
+                />
+                <Select className="table-toolbar-select" allowClear placeholder="全部省份" value={filters.province} options={provinceOptions.map((value) => ({ value, label: value }))} onChange={(province) => setFilters((value) => ({ ...value, province }))} />
+                <Select className="table-toolbar-select" allowClear placeholder="全部产品" value={filters.product} options={productOptions.map((value) => ({ value, label: value }))} onChange={(product) => setFilters((value) => ({ ...value, product }))} />
+                <Select className="table-toolbar-select" allowClear placeholder="部署状态" value={filters.coverageStatus} options={COVERAGE_STATUSES.map((value) => ({ value, label: value }))} onChange={(coverageStatus) => setFilters((value) => ({ ...value, coverageStatus }))} />
+                <Button icon={<ReloadOutlined />} onClick={() => setFilters(EMPTY_FILTERS)}>重置</Button>
+                <Button danger type="text" icon={<DeleteOutlined />} disabled={!adminUnlocked || selectedIds.length === 0} onClick={deleteSelected}>删除已选 {selectedIds.length || ""}</Button>
+              </Flex>
               <Space wrap>
                 <Button type="primary" icon={<PlusOutlined />} disabled={!adminUnlocked} onClick={() => openDrawer("create")}>新增高校</Button>
                 <Upload {...uploadProps}><Button icon={<ImportOutlined />} loading={importing} disabled={!adminUnlocked}>导入 Excel</Button></Upload>
@@ -582,21 +602,6 @@ function AdminDataEntryContent() {
                 <Button icon={<FileExcelOutlined />} onClick={() => downloadWorkbook("高校信息维护清单-模板.xlsx", buildExcelTemplate())}>下载模板</Button>
               </Space>
             </Flex>
-
-            <div className="filter-bar">
-              <Input
-                allowClear
-                prefix={<SearchOutlined />}
-                placeholder="搜索高校名称、ID、设备型号等"
-                value={filters.keyword}
-                onChange={(event) => setFilters((value) => ({ ...value, keyword: event.target.value }))}
-              />
-              <Select allowClear placeholder="全部省份" value={filters.province} options={provinceOptions.map((value) => ({ value, label: value }))} onChange={(province) => setFilters((value) => ({ ...value, province }))} />
-              <Select allowClear placeholder="全部产品" value={filters.product} options={productOptions.map((value) => ({ value, label: value }))} onChange={(product) => setFilters((value) => ({ ...value, product }))} />
-              <Select allowClear placeholder="部署状态" value={filters.coverageStatus} options={COVERAGE_STATUSES.map((value) => ({ value, label: value }))} onChange={(coverageStatus) => setFilters((value) => ({ ...value, coverageStatus }))} />
-              <Button icon={<ReloadOutlined />} onClick={() => setFilters(EMPTY_FILTERS)}>重置</Button>
-              <Button danger type="text" icon={<DeleteOutlined />} disabled={!adminUnlocked || selectedIds.length === 0} onClick={deleteSelected}>删除已选 {selectedIds.length || ""}</Button>
-            </div>
 
             <Table
               className="university-table"
