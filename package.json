@@ -16,7 +16,9 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.3.2",
     "@vercel/blob": "^2.4.0",
+    "antd": "^6.5.4",
     "china-map-echarts": "^1.0.5",
     "clsx": "^2.1.1",
     "echarts": "^6.1.0",
